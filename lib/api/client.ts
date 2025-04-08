@@ -60,6 +60,15 @@ export const userAPI = {
   // Get a specific user
   getUser: (id: string) => fetchAPI<any>(`/api/users/${id}`),
   
+  // Search for users
+  searchUsers: (params: { name?: string; email?: string; friendId?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params.name) searchParams.append('name', params.name);
+    if (params.email) searchParams.append('email', params.email);
+    if (params.friendId) searchParams.append('friendId', params.friendId);
+    return fetchAPI<any[]>(`/api/users/search?${searchParams.toString()}`);
+  },
+  
   // Create a new user
   createUser: (userData: any) => fetchAPI<any>('/api/users', {
     method: 'POST',
