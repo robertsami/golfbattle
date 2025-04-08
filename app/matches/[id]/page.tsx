@@ -340,7 +340,7 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
   )
 }
 
-function ResultCard({ result }: { result: any }) {
+function ResultCard({ result }: ResultCardProps) {
   return (
     <Card>
       <CardContent className="p-4">

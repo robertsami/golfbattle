@@ -181,7 +181,7 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
                 <Button
                   variant="outline"
                   className={`w-full h-24 flex flex-col items-center justify-center ${
-                    hole.birdies.some((birdie: Birdie) => birdie.userId === session?.user?.id && birdie.date)
+                    hole.birdies.some((birdie: Birdie) => birdie.achieverId === session?.user?.id && birdie.date)
                       ? "bg-green-100 border-green-500"
                       : ""
                   }`}
@@ -193,14 +193,14 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
                       birdie.date ? (
                         <div
                           key={index}
-                          className={`w-3 h-3 rounded-full ${birdie.userId === session?.user?.id ? "bg-green-600" : "bg-gray-400"}`}
-                          title={`${competition?.participants?.find((p: Participant) => p.id === birdie.userId)?.name} - ${birdie.date}`}
+                          className={`w-3 h-3 rounded-full ${birdie.achieverId === session?.user?.id ? "bg-green-600" : "bg-gray-400"}`}
+                          title={`${birdie.achiever?.name || 'Unknown'} - ${new Date(birdie.date).toLocaleDateString()}`}
                         />
                       ) : null,
                     )}
                   </div>
                 </Button>
-                {hole.birdies.some((birdie: Birdie) => birdie.userId === session?.user?.id && birdie.date) && (
+                {hole.birdies.some((birdie: Birdie) => birdie.achieverId === session?.user?.id && birdie.date) && (
                   <div className="absolute top-2 right-2">
                     <Check className="h-4 w-4 text-green-600" />
                   </div>

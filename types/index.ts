@@ -15,10 +15,16 @@ declare module "next-auth" {
 }
 
 export interface Friend {
-  id: number;
+  id: string;
   name: string;
+  email: string | null;
+  emailVerified: string | null;
+  image: string | null;
   friendId: string;
-  image?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  
+  // Client-side computed properties
   stats?: {
     matches: number;
     birdies: number;
@@ -27,64 +33,132 @@ export interface Friend {
 }
 
 export interface Match {
-  id: string | number;
-  opponent: string;
-  yourScore: number;
-  opponentScore: number;
+  id: string;
   status: string;
   startDate?: string;
-  results?: MatchResult[];
+  createdAt: string;
+  updatedAt: string;
+  
+  // From API response
+  player1Id: string;
+  player2Id: string;
+  player1Score: number;
+  player2Score: number;
+  player1: { id: string; name: string; friendId: string };
+  player2: { id: string; name: string; friendId: string };
+  results: MatchResult[];
+  
+  // Client-side computed properties
+  opponent?: string;
+  yourScore?: number;
+  opponentScore?: number;
   lastPlayed?: string;
   pendingResults?: number;
-  
-  // Additional properties used in the dashboard
-  player1?: { id: string; name: string };
-  player2?: { id: string; name: string };
-  player1Id?: string;
-  player2Id?: string;
-  player1Score?: number;
-  player2Score?: number;
-  updatedAt?: string;
 }
 
 export interface MatchResult {
-  id: number;
+  id: string;
+  matchId: string;
+  submitterId: string;
+  player1Score: number;
+  player2Score: number;
   date: string;
-  yourScore: number;
-  opponentScore: number;
   status: string;
+  createdAt: string;
+  updatedAt: string;
+  submitter: {
+    id: string;
+    name: string;
+  };
+  
+  // Client-side computed properties
+  yourScore?: number;
+  opponentScore?: number;
   submittedBy?: string;
 }
 
 export interface Competition {
-  id: string | number;
+  id: string;
   title: string;
   type: string;
-  participants: Participant[];
-  startDate?: string;
-  holes?: CompetitionHole[];
+  creatorId: string;
+  startDate: string;
+  createdAt: string;
+  updatedAt: string;
+  
+  // From API response
+  creator: {
+    id: string;
+    name: string;
+  };
+  participants: {
+    userId: string;
+    competitionId: string;
+    user: {
+      id: string;
+      name: string;
+    };
+    progress?: number;
+    total?: number;
+    percentage?: number;
+  }[];
+  holes: CompetitionHole[];
+  
+  // Client-side computed properties
   progress?: number;
   total?: number;
   lastActivity?: string;
-  updatedAt?: string;
 }
 
 export interface Participant {
-  id: number;
-  name: string;
+  userId: string;
+  competitionId: string;
+  user: {
+    id: string;
+    name: string;
+  };
+  
+  // Client-side computed properties
+  id?: string; // For backward compatibility
+  name?: string; // For backward compatibility
   completed?: number;
+  progress?: number;
+  total?: number;
   percentage?: number;
 }
 
 export interface CompetitionHole {
-  number: number;
+  id: string;
+  competitionId: string;
+  holeNumber: number;
+  createdAt: string;
+  updatedAt: string;
   birdies: Birdie[];
+  
+  // For backward compatibility
+  number?: number;
 }
 
 export interface Birdie {
-  userId: number;
-  date: string | null;
-  attestedBy: { id: number; name: string } | null;
+  id: string;
+  competitionHoleId: string;
+  achieverId: string;
+  attesterId: string | null;
+  date: string;
+  createdAt: string;
+  updatedAt: string;
+  achiever: {
+    id: string;
+    name: string;
+  };
+  attester: {
+    id: string;
+    name: string;
+  } | null;
+  
+  // For backward compatibility
+  userId?: string;
+  attestedBy?: { id: string; name: string } | null;
 }
 
 export interface NavItemProps {
@@ -99,31 +173,35 @@ export interface StatsCardProps {
 }
 
 export interface MatchCardProps {
-  match: Match;
-}
-
-export interface DashboardMatchCardProps {
+  matchId: string;
   opponent: string;
   yourScore: number;
   opponentScore: number;
   lastPlayed: string;
+  pendingResults?: number;
+}
+
+export interface DashboardMatchCardProps {
+  matchId: string;
+  opponent: string;
+  yourScore: number;
+  opponentScore: number;
+  lastPlayed: string;
+  pendingResults?: number;
 }
 
 export interface CompetitionCardProps {
-  competition?: Competition;
-  title?: string;
-  type?: string;
-  participants?: Participant[] | number;
-  progress?: number;
-  total?: number;
+  competitionId: string;
+  title: string;
+  type: string;
+  participantCount: number;
+  progress: number;
+  total: number;
   lastActivity?: string;
 }
 
 export interface ResultCardProps {
   result: MatchResult;
-  opponent: string;
-  onAccept: (resultId: number) => void;
-  onReject: (resultId: number) => void;
 }
 
 export interface FeatureCardProps {
@@ -132,6 +210,6 @@ export interface FeatureCardProps {
   description: string;
 }
 
-export interface PageParams extends Promise<{ id: string }> {
+export interface PageParams {
   id: string;
 }
