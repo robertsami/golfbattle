@@ -73,7 +73,7 @@ export default function LoginPage() {
               <GolfIcon className="h-8 w-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold text-green-800">Welcome to GolfRival</CardTitle>
+          <CardTitle className="text-2xl font-bold text-green-800">Welcome to GolfDegens</CardTitle>
           <CardDescription>Sign in to track your golf competitions</CardDescription>
           {errorMessage && (
             <div className="mt-4 p-3 bg-red-100 text-red-800 rounded-md text-sm">

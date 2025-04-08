@@ -14,9 +14,8 @@ import type { AuthOptions } from "next-auth"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "GolfRival - Track Your Golf Competitions",
+  title: "GolfDegens - Lose Money Golfing",
   description: "A web application for tracking long-running golf competitions between friends.",
-  generator: 'v0.dev'
 };
 
 export default async function RootLayout({
@@ -26,6 +25,7 @@ export default async function RootLayout({
 }) {
   const session = await getServerSession(authOptions as AuthOptions);
   const user = session?.user;
+  console.log("session", session);
 
   return (
     <html lang="en">
@@ -49,7 +49,7 @@ export default async function RootLayout({
                         />
                       </svg>
                     </div>
-                    <span className="text-xl font-bold">GolfRival</span>
+                    <span className="text-xl font-bold">GolfDegens</span>
                   </Link>
                 </div>
 
@@ -108,7 +108,7 @@ export default async function RootLayout({
                         />
                       </svg>
                     </div>
-                    <span className="text-lg font-bold">GolfRival</span>
+                    <span className="text-lg font-bold">GolfDegens</span>
                   </Link>
 
                   {user ? (

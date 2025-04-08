@@ -8,7 +8,7 @@ export default function Home() {
     <div className="flex flex-col min-h-screen">
       <header className="bg-green-800 text-white p-4">
         <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold">GolfRival</h1>
+          <h1 className="text-2xl font-bold">GolfDegens</h1>
           <Link href="/login">
             <Button variant="outline" className="text-white border-white hover:bg-green-700">
               Login
@@ -56,7 +56,7 @@ export default function Home() {
 
       <footer className="bg-gray-800 text-white p-4">
         <div className="container mx-auto text-center">
-          <p>© {new Date().getFullYear()} GolfRival. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} GolfDegens. All rights reserved.</p>
         </div>
       </footer>
     </div>
