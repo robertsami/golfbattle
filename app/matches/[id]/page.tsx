@@ -196,7 +196,7 @@ export default function MatchDetailPage(props: { params: Promise<PageParams> }) 
                     <span
                       className={
                         (yourScore || 0) > (opponentScore || 0)
-                          ? "text-green-600"
+                          ? "text-green-600"  // Higher score is better in match play
                           : (yourScore || 0) < (opponentScore || 0)
                             ? "text-red-600"
                             : "text-gray-600"
@@ -208,7 +208,7 @@ export default function MatchDetailPage(props: { params: Promise<PageParams> }) 
                     <span
                       className={
                         (opponentScore || 0) > (yourScore || 0)
-                          ? "text-green-600"
+                          ? "text-green-600"  // Higher score is better in match play
                           : (opponentScore || 0) < (yourScore || 0)
                             ? "text-red-600"
                             : "text-gray-600"
@@ -354,9 +354,9 @@ function ResultCard({ result }: ResultCardProps) {
             <div className="text-xl font-bold">
               <span
                 className={
-                  result.player1Score < result.player2Score
-                    ? "text-green-600"
-                    : result.player1Score > result.player2Score
+                  result.player1Score > result.player2Score
+                    ? "text-green-600"  // Higher score is better in match play
+                    : result.player1Score < result.player2Score
                       ? "text-red-600"
                       : "text-gray-600"
                 }
@@ -366,9 +366,9 @@ function ResultCard({ result }: ResultCardProps) {
               <span className="mx-1">-</span>
               <span
                 className={
-                  result.player2Score < result.player1Score
-                    ? "text-green-600"
-                    : result.player2Score > result.player1Score
+                  result.player2Score > result.player1Score
+                    ? "text-green-600"  // Higher score is better in match play
+                    : result.player2Score < result.player1Score
                       ? "text-red-600"
                       : "text-gray-600"
                 }
