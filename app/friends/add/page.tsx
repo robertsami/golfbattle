@@ -74,8 +74,8 @@ export default function AddFriendPage() {
     setIsAdding(true)
     
     try {
-      // Add friend using the API
-      await userAPI.addFriend(session.user.id, searchResult.id)
+      // Add friend using the API - pass the friendId, not the user's database ID
+      await userAPI.addFriend(session.user.id, searchResult.friendId)
       
       // Show success message
       toast({
