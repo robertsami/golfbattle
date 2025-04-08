@@ -20,21 +20,35 @@ export default function DashboardPage() {
   const currentUser = useCurrentUser();
   const userId = currentUser?.id;
   
-  const [competitions, setCompetitions] = useState<any[]>([]);
-  const [matches, setMatches] = useState<any[]>([]);
-  const [friends, setFriends] = useState<any[]>([]);
-  const [stats, setStats] = useState({
+  const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [stats, setStats] = useState<{
+    matchesPlayed: number;
+    birdiesRecorded: number;
+    bingoSquaresCompleted: number;
+  }>({
     matchesPlayed: 0,
     birdiesRecorded: 0,
     bingoSquaresCompleted: 0,
   });
-  const [loading, setLoading] = useState({
+  const [loading, setLoading] = useState<{
+    competitions: boolean;
+    matches: boolean;
+    friends: boolean;
+    stats: boolean;
+  }>({
     competitions: true,
     matches: true,
     friends: true,
     stats: true,
   });
-  const [error, setError] = useState({
+  const [error, setError] = useState<{
+    competitions: string | null;
+    matches: string | null;
+    friends: string | null;
+    stats: string | null;
+  }>({
     competitions: null,
     matches: null,
     friends: null,

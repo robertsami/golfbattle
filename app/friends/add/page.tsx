@@ -16,11 +16,11 @@ import { toast } from "@/components/ui/use-toast"
 export default function AddFriendPage() {
   const { data: session } = useSession()
   const router = useRouter()
-  const [friendId, setFriendId] = useState("")
-  const [copied, setCopied] = useState(false)
-  const [searchResult, setSearchResult] = useState<any | null>(null)
-  const [isSearching, setIsSearching] = useState(false)
-  const [isAdding, setIsAdding] = useState(false)
+  const [friendId, setFriendId] = useState<string>("")
+  const [copied, setCopied] = useState<boolean>(false)
+  const [searchResult, setSearchResult] = useState<Friend | null>(null)
+  const [isSearching, setIsSearching] = useState<boolean>(false)
+  const [isAdding, setIsAdding] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [myFriendId, setMyFriendId] = useState<string>("")
 

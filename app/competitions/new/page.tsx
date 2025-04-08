@@ -17,14 +17,14 @@ import { userAPI, competitionAPI } from "@/lib/api/client"
 export default function NewCompetitionPage() {
   const { data: session } = useSession()
   const router = useRouter()
-  const [competitionType, setCompetitionType] = useState("birdie-checklist")
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [selectedFriends, setSelectedFriends] = useState<any[]>([])
-  const [friends, setFriends] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [competitionType, setCompetitionType] = useState<string>("birdie-checklist")
+  const [title, setTitle] = useState<string>("")
+  const [description, setDescription] = useState<string>("")
+  const [selectedFriends, setSelectedFriends] = useState<Friend[]>([])
+  const [friends, setFriends] = useState<Friend[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-  const [creating, setCreating] = useState(false)
+  const [creating, setCreating] = useState<boolean>(false)
 
   // Fetch friends
   useEffect(() => {

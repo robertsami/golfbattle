@@ -10,9 +10,9 @@ import { Competition, CompetitionCardProps } from "@/types"
 import { competitionAPI } from "@/lib/api/client"
 
 export default function CompetitionsPage() {
-  const [birdieCompetitions, setBirdieCompetitions] = useState<any[]>([]);
-  const [bingoCompetitions, setBingoCompetitions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [birdieCompetitions, setBirdieCompetitions] = useState<Competition[]>([]);
+  const [bingoCompetitions, setBingoCompetitions] = useState<Competition[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

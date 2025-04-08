@@ -25,11 +25,14 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
   const { data: session } = useSession()
   // Use React.use to unwrap the params Promise
   const { id: matchId } = React.use(params)
-  const [match, setMatch] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [match, setMatch] = useState<Match | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-  const [isAddResultOpen, setIsAddResultOpen] = useState(false)
-  const [newResult, setNewResult] = useState({
+  const [isAddResultOpen, setIsAddResultOpen] = useState<boolean>(false)
+  const [newResult, setNewResult] = useState<{
+    yourScore: string;
+    opponentScore: string;
+  }>({
     yourScore: "",
     opponentScore: "",
   })

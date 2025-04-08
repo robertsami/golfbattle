@@ -12,10 +12,10 @@ import { userAPI } from "@/lib/api/client"
 
 export default function FriendsPage() {
   const { data: session } = useSession()
-  const [friends, setFriends] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [friends, setFriends] = useState<Friend[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQuery, setSearchQuery] = useState<string>("")
   
   // Fetch friends
   useEffect(() => {

@@ -15,12 +15,12 @@ import { userAPI, matchAPI } from "@/lib/api/client"
 export default function NewMatchPage() {
   const { data: session } = useSession()
   const router = useRouter()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedFriend, setSelectedFriend] = useState<any | null>(null)
-  const [friends, setFriends] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState<string>("")
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null)
+  const [friends, setFriends] = useState<Friend[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-  const [creating, setCreating] = useState(false)
+  const [creating, setCreating] = useState<boolean>(false)
 
   // Fetch friends
   useEffect(() => {

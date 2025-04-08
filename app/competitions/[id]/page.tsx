@@ -21,8 +21,8 @@ import { PageParams } from "@/types"
 export default function CompetitionDetailPage({ params }: { params: PageParams }) {
   // Use React.use to unwrap the params Promise
   const { id: competitionId } = React.use(params)
-  const [competition, setCompetition] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [competition, setCompetition] = useState<Competition | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   
   // Fetch competition data

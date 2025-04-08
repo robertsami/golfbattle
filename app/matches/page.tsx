@@ -12,8 +12,8 @@ import { formatDate } from "@/lib/utils"
 
 export default function MatchesPage() {
   const { data: session } = useSession()
-  const [matches, setMatches] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [matches, setMatches] = useState<Match[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   
   // Fetch matches
