@@ -15,23 +15,31 @@ export const authOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      allowDangerousEmailAccountLinking: true, // Allow linking accounts with the same email
     }),
   ],
   callbacks: {
-    async session({ session, user }: any) {
+    async session({ session, user, token }: any) {
       // Add user ID to the session
       if (session.user) {
-        session.user.id = user.id;
+        // If using JWT strategy, get the ID from the token
+        if (token?.sub) {
+          session.user.id = token.sub;
+        } 
+        // If using database strategy, get the ID from the user object
+        else if (user?.id) {
+          session.user.id = user.id;
+        }
         
         // Check if user has a friendId, if not, create one
         const dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
+          where: { id: session.user.id },
         });
         
         if (dbUser && !dbUser.friendId) {
           const friendId = generateFriendId();
           await prisma.user.update({
-            where: { id: user.id },
+            where: { id: session.user.id },
             data: { friendId },
           });
           session.user.friendId = friendId;
@@ -41,23 +49,37 @@ export const authOptions = {
       }
       return session;
     },
-    async signIn({ user, account, profile }: any) {
-      // Create or update user in our database
+    async jwt({ token, user, account, profile }: any) {
+      // Add custom claims to the JWT token
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
+    async signIn({ user, account, profile, email, credentials }: any) {
+      // Always allow sign in
       if (user.email) {
+        // Check if user exists
         const existingUser = await prisma.user.findUnique({
           where: { email: user.email },
         });
         
         if (!existingUser) {
-          // Create a new user
-          await prisma.user.create({
-            data: {
-              id: user.id,
-              name: user.name || profile.name,
-              email: user.email,
-              friendId: generateFriendId(),
-            },
-          });
+          try {
+            // Create a new user if they don't exist
+            await prisma.user.create({
+              data: {
+                id: user.id,
+                name: user.name || profile?.name,
+                email: user.email,
+                image: user.image,
+                friendId: generateFriendId(),
+              },
+            });
+          } catch (error) {
+            console.error("Error creating user:", error);
+            // Continue anyway - the adapter will handle this
+          }
         }
       }
       return true;
@@ -68,9 +90,11 @@ export const authOptions = {
     error: "/login",
   },
   session: {
-    strategy: "jwt",
+    strategy: "jwt", // Use JWT for sessions
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === "development",
 };
 
 const handler = NextAuth(authOptions);

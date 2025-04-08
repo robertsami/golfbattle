@@ -10,7 +10,39 @@ import { ClubIcon as GolfIcon } from "lucide-react"
 export default function LoginPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  
+  // Get error from URL
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const errorParam = searchParams.get('error');
+      if (errorParam) {
+        setError(errorParam);
+      }
+    }
+  }, []);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Handle error messages
+  useEffect(() => {
+    if (error) {
+      switch (error) {
+        case 'OAuthAccountNotLinked':
+          setErrorMessage('Email already in use with a different provider. Please sign in using the original provider.');
+          break;
+        case 'OAuthSignin':
+          setErrorMessage('Error during OAuth sign in. Please try again.');
+          break;
+        case 'OAuthCallback':
+          setErrorMessage('Error during OAuth callback. Please try again.');
+          break;
+        default:
+          setErrorMessage('An error occurred during sign in. Please try again.');
+      }
+    }
+  }, [error]);
 
   // Redirect to dashboard if already logged in
   useEffect(() => {
@@ -43,6 +75,11 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-bold text-green-800">Welcome to GolfRival</CardTitle>
           <CardDescription>Sign in to track your golf competitions</CardDescription>
+          {errorMessage && (
+            <div className="mt-4 p-3 bg-red-100 text-red-800 rounded-md text-sm">
+              {errorMessage}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <Button
