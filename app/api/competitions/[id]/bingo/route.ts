@@ -110,7 +110,14 @@ export async function POST(
     // Ensure params is properly awaited
     const { id: competitionId } = await params;
     const body = await request.json();
-    const { text, position } = body;
+    const { text, position, userId } = body;
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      );
+    }
     
     if (!text || position === undefined) {
       return NextResponse.json(
@@ -142,8 +149,9 @@ export async function POST(
     const bingoSquare = await prisma.bingoSquare.create({
       data: {
         competitionId,
-        text,
-        position,
+        description: text,
+        squareNumber: position,
+        userId, // Required field in the schema
       },
     });
     

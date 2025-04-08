@@ -23,8 +23,8 @@ import { formatDate } from "@/lib/utils"
 
 export default function MatchDetailPage({ params }: { params: PageParams }) {
   const { data: session } = useSession()
-  // Use React.use to unwrap the params Promise
-  const { id: matchId } = React.use(params)
+  // Get the match ID from params
+  const { id: matchId } = params
   const [match, setMatch] = useState<Match | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -238,11 +238,11 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
 
             <TabsContent value="results">
               <h2 className="text-xl font-bold mb-4 text-gray-800">Match Results</h2>
-              {results.filter((r: MatchResult) => r.status === 'accepted').length > 0 ? (
+              {match && match.results.filter(r => r.status === 'accepted').length > 0 ? (
                 <div className="space-y-4">
-                  {results
-                    .filter((r: MatchResult) => r.status === 'accepted')
-                    .map((result: MatchResult) => (
+                  {match.results
+                    .filter(r => r.status === 'accepted')
+                    .map(result => (
                       <ResultCard key={result.id} result={result} />
                     ))}
                 </div>
@@ -276,7 +276,7 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Results</p>
-                  <p className="font-medium">{results.filter((r: MatchResult) => r.status === 'accepted').length} submitted</p>
+                  <p className="font-medium">{match ? match.results.filter(r => r.status === 'accepted').length : 0} submitted</p>
                 </div>
               </div>
             </CardContent>
