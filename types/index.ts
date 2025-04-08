@@ -18,6 +18,7 @@ export interface Friend {
   id: number;
   name: string;
   friendId: string;
+  image?: string | null;
   stats?: {
     matches: number;
     birdies: number;
@@ -35,6 +36,15 @@ export interface Match {
   results?: MatchResult[];
   lastPlayed?: string;
   pendingResults?: number;
+  
+  // Additional properties used in the dashboard
+  player1?: { id: string; name: string };
+  player2?: { id: string; name: string };
+  player1Id?: string;
+  player2Id?: string;
+  player1Score?: number;
+  player2Score?: number;
+  updatedAt?: string;
 }
 
 export interface MatchResult {

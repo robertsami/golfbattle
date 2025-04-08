@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Competition, Participant, CompetitionHole, Birdie, PageParams } from "@/types"
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Check } from "lucide-react"
-import { PageParams } from "@/types"
+
 
 export default function CompetitionDetailPage({ params }: { params: PageParams }) {
   // Use React.use to unwrap the params Promise
@@ -61,11 +62,11 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
   }
 
   // Calculate progress for each participant
-  const participantProgress = competition.participants
-    .map((participant) => {
-      const completedHoles = competition.holes.filter((hole) =>
-        hole.birdies.some((birdie) => birdie.userId === participant.id && birdie.date),
-      ).length
+  const participantProgress = competition?.participants
+    ?.map((participant: Participant) => {
+      const completedHoles = competition?.holes?.filter((hole: CompetitionHole) =>
+        hole.birdies.some((birdie: Birdie) => birdie.userId === participant.id && birdie.date),
+      ).length || 0;
 
       return {
         ...participant,
@@ -73,7 +74,7 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
         percentage: (completedHoles / 18) * 100,
       }
     })
-    .sort((a, b) => b.completed - a.completed)
+    ?.sort((a: Participant & { completed: number }, b: Participant & { completed: number }) => b.completed - a.completed) || []
 
   return (
     <div className="container mx-auto p-4 md:p-8">
@@ -81,14 +82,14 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
         <Link href="/competitions" className="inline-flex items-center text-green-800 hover:text-green-700 mb-4">
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to Competitions
         </Link>
-        <h1 className="text-3xl font-bold text-green-800">{competition.title}</h1>
+        <h1 className="text-3xl font-bold text-green-800">{competition?.title}</h1>
         <p className="text-gray-600">
-          Started on {competition.startDate} • {competition.participants.length} participants
+          Started on {competition?.startDate} • {competition?.participants?.length} participants
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        {participantProgress.map((participant) => (
+        {participantProgress.map((participant: Participant & { completed: number, percentage: number }) => (
           <Card key={participant.id}>
             <CardContent className="p-4">
               <div className="text-center">
@@ -110,12 +111,12 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-            {competition.holes.map((hole) => (
+            {competition?.holes?.map((hole: CompetitionHole) => (
               <div key={hole.number} className="relative">
                 <Button
                   variant="outline"
                   className={`w-full h-24 flex flex-col items-center justify-center ${
-                    hole.birdies.some((birdie) => birdie.userId === 1 && birdie.date)
+                    hole.birdies.some((birdie: Birdie) => birdie.userId === 1 && birdie.date)
                       ? "bg-green-100 border-green-500"
                       : ""
                   }`}
@@ -123,18 +124,18 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
                 >
                   <div className="text-lg font-bold mb-1">Hole {hole.number}</div>
                   <div className="flex flex-wrap justify-center gap-1">
-                    {hole.birdies.map((birdie, index) =>
+                    {hole.birdies.map((birdie: Birdie, index: number) =>
                       birdie.date ? (
                         <div
                           key={index}
                           className={`w-3 h-3 rounded-full ${birdie.userId === 1 ? "bg-green-600" : "bg-gray-400"}`}
-                          title={`${competition.participants.find((p) => p.id === birdie.userId)?.name} - ${birdie.date}`}
+                          title={`${competition?.participants?.find((p: Participant) => p.id === birdie.userId)?.name} - ${birdie.date}`}
                         />
                       ) : null,
                     )}
                   </div>
                 </Button>
-                {hole.birdies.some((birdie) => birdie.userId === 1 && birdie.date) && (
+                {hole.birdies.some((birdie: Birdie) => birdie.userId === 1 && birdie.date) && (
                   <div className="absolute top-2 right-2">
                     <Check className="h-4 w-4 text-green-600" />
                   </div>
@@ -165,9 +166,9 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
                   <SelectValue placeholder="Select a friend to attest" />
                 </SelectTrigger>
                 <SelectContent>
-                  {competition.participants
-                    .filter((p) => p.id !== 1) // Filter out yourself
-                    .map((participant) => (
+                  {competition?.participants
+                    .filter((p: Participant) => p.id !== 1) // Filter out yourself
+                    .map((participant: Participant) => (
                       <SelectItem key={participant.id} value={participant.id.toString()}>
                         {participant.name}
                       </SelectItem>

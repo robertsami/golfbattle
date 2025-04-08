@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CheckSquare, Grid3X3, Trophy, ChevronRight, Loader2 } from "lucide-react"
 import { competitionAPI, matchAPI, userAPI } from "@/lib/api/client"
+import { Competition, Match, Friend } from "@/types"
 
 import { useSession } from "next-auth/react";
 
@@ -225,7 +226,7 @@ export default function DashboardPage() {
                         : competition.participants?.reduce((acc: number, p: any) => acc + (p.progress || 0), 0) || 0
                       }
                       total={competition.type === 'birdie-checklist' ? 18 : 25}
-                      competitionId={competition.id}
+                      competitionId={String(competition.id)}
                     />
                   ))}
                 </div>
@@ -269,11 +270,11 @@ export default function DashboardPage() {
                   {matches.map((match) => (
                     <MatchCard 
                       key={match.id}
-                      matchId={match.id}
+                      matchId={String(match.id)}
                       opponent={match.player1?.name || match.player2?.name || 'Opponent'}
-                      yourScore={match.player1Score}
-                      opponentScore={match.player2Score}
-                      lastPlayed={formatDate(match.updatedAt)}
+                      yourScore={match.player1Score || 0}
+                      opponentScore={match.player2Score || 0}
+                      lastPlayed={formatDate(match.updatedAt || '')}
                       pendingResults={match.results?.filter((r: any) => r.status === 'pending').length || 0}
                     />
                   ))}
@@ -310,7 +311,7 @@ export default function DashboardPage() {
                   {friends.map((friend) => (
                     <FriendCard 
                       key={friend.id}
-                      friendId={friend.id}
+                      friendId={String(friend.id)}
                       name={friend.name} 
                     />
                   ))}

@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Plus, Check, X, Clock, Loader2 } from "lucide-react"
-import { PageParams, ResultCardProps } from "@/types"
+import { PageParams, ResultCardProps, Match, MatchResult } from "@/types"
 import { useSession } from "next-auth/react"
 import { matchAPI } from "@/lib/api/client"
 import { formatDate } from "@/lib/utils"
@@ -191,9 +191,9 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
                   <div className="text-3xl font-bold mb-1">
                     <span
                       className={
-                        yourScore > opponentScore
+                        (yourScore || 0) > (opponentScore || 0)
                           ? "text-green-600"
-                          : yourScore < opponentScore
+                          : (yourScore || 0) < (opponentScore || 0)
                             ? "text-red-600"
                             : "text-gray-600"
                       }
@@ -203,9 +203,9 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
                     <span className="mx-2">-</span>
                     <span
                       className={
-                        opponentScore > yourScore
+                        (opponentScore || 0) > (yourScore || 0)
                           ? "text-green-600"
-                          : opponentScore < yourScore
+                          : (opponentScore || 0) < (yourScore || 0)
                             ? "text-red-600"
                             : "text-gray-600"
                       }
@@ -236,11 +236,11 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
 
             <TabsContent value="results">
               <h2 className="text-xl font-bold mb-4 text-gray-800">Match Results</h2>
-              {results.filter(r => r.status === 'accepted').length > 0 ? (
+              {results.filter((r: MatchResult) => r.status === 'accepted').length > 0 ? (
                 <div className="space-y-4">
                   {results
-                    .filter(r => r.status === 'accepted')
-                    .map((result) => (
+                    .filter((r: MatchResult) => r.status === 'accepted')
+                    .map((result: MatchResult) => (
                       <ResultCard key={result.id} result={result} />
                     ))}
                 </div>
@@ -255,11 +255,11 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
 
             <TabsContent value="pending">
               <h2 className="text-xl font-bold mb-4 text-gray-800">Pending Results</h2>
-              {results.filter(r => r.status === 'pending').length > 0 ? (
+              {results.filter((r: MatchResult) => r.status === 'pending').length > 0 ? (
                 <div className="space-y-4">
                   {results
-                    .filter(r => r.status === 'pending')
-                    .map((result) => (
+                    .filter((r: MatchResult) => r.status === 'pending')
+                    .map((result: MatchResult) => (
                       <PendingResultCard key={result.id} result={result} />
                     ))}
                 </div>
@@ -293,7 +293,7 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Results</p>
-                  <p className="font-medium">{results.filter(r => r.status === 'accepted').length} submitted</p>
+                  <p className="font-medium">{results.filter((r: MatchResult) => r.status === 'accepted').length} submitted</p>
                 </div>
               </div>
             </CardContent>
