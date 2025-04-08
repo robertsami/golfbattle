@@ -538,11 +538,35 @@ async function createCompetitions(users: any[]) {
   }
 }
 
-main()
-  .catch((e) => {
-    console.error('Error during seeding:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
+async function runSeed() {
+  try {
+    // Test database connection first
+    await prisma.$connect();
+    
+    // If connection is successful, run the main seeding function
+    await main();
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("Can't reach database server")) {
+      console.error('\n\nDatabase connection error:');
+      console.error('Could not connect to the PostgreSQL database.');
+      console.error('This is expected when running in development without a local PostgreSQL server.');
+      console.error('For local development, you can:');
+      console.error('1. Install PostgreSQL locally');
+      console.error('2. Use Docker to run PostgreSQL');
+      console.error('3. Use a cloud database service');
+      console.error('\nThe seed script will be skipped.\n');
+      
+      // Exit with success code since this is an expected scenario in development
+      process.exit(0);
+    } else {
+      // For other errors, log and exit with error code
+      console.error('Error during seeding:', e);
+      process.exit(1);
+    }
+  } finally {
     await prisma.$disconnect();
-  });
+  }
+}
+
+// Run the seed function
+runSeed();
