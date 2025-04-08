@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,23 +9,50 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, CheckSquare, Grid3X3, X, User, Check } from "lucide-react"
+import { ArrowLeft, CheckSquare, Grid3X3, X, User, Check, Loader2 } from "lucide-react"
 import { Friend } from "@/types"
+import { useSession } from "next-auth/react"
+import { userAPI, competitionAPI } from "@/lib/api/client"
 
 export default function NewCompetitionPage() {
+  const { data: session } = useSession()
+  const router = useRouter()
   const [competitionType, setCompetitionType] = useState("birdie-checklist")
-  const [selectedFriends, setSelectedFriends] = useState<Friend[]>([])
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [selectedFriends, setSelectedFriends] = useState<any[]>([])
+  const [friends, setFriends] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
 
-  // Mock friends data
-  const friends = [
-    { id: 1, name: "John Smith", friendId: "john123" },
-    { id: 2, name: "Mike Johnson", friendId: "mike456" },
-    { id: 3, name: "Dave Wilson", friendId: "dave789" },
-    { id: 4, name: "Robert Brown", friendId: "robert321" },
-    { id: 5, name: "James Davis", friendId: "james654" },
-  ]
+  // Fetch friends
+  useEffect(() => {
+    const fetchFriends = async () => {
+      try {
+        setLoading(true)
+        const userId = session?.user?.id
+        
+        if (!userId) {
+          // If not logged in, we'll show empty state
+          setFriends([])
+          return
+        }
+        
+        const data = await userAPI.getUserFriends(userId)
+        setFriends(data)
+      } catch (err: any) {
+        console.error("Error fetching friends:", err)
+        setError(err.message || "Failed to load friends")
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchFriends()
+  }, [session?.user?.id])
 
-  const toggleFriendSelection = (friend: Friend) => {
+  const toggleFriendSelection = (friend: any) => {
     if (selectedFriends.some((f) => f.id === friend.id)) {
       setSelectedFriends(selectedFriends.filter((f) => f.id !== friend.id))
     } else {
@@ -32,70 +60,106 @@ export default function NewCompetitionPage() {
     }
   }
 
-  const handleCreateCompetition = () => {
-    // In a real app, this would send the data to the server
-    console.log("Creating competition:", {
-      type: competitionType,
-      participants: selectedFriends,
-    })
+  const handleCreateCompetition = async () => {
+    if (!title || !session?.user?.id) return
+    
+    try {
+      setCreating(true)
+      
+      // Create the competition
+      const newCompetition = await competitionAPI.createCompetition({
+        title,
+        description,
+        type: competitionType,
+        creatorId: session.user.id,
+        startDate: new Date().toISOString(),
+        status: 'active',
+        participants: [
+          session.user.id, // Include the current user
+          ...selectedFriends.map(f => f.id) // Include selected friends
+        ]
+      })
+      
+      // Redirect to the new competition page
+      router.push(`/competitions/${newCompetition.id}`)
+    } catch (err: any) {
+      console.error("Error creating competition:", err)
+      alert("Failed to create competition: " + (err.message || "Unknown error"))
+      setCreating(false)
+    }
+  }
 
-    // Redirect to the competitions page
-    window.location.href = "/competitions"
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="container mx-auto p-4 md:p-8">
+        <div className="flex items-center mb-8">
+          <Link href="/competitions">
+            <Button variant="ghost" className="mr-4">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+          </Link>
+          <h1 className="text-3xl font-bold text-green-800">New Competition</h1>
+        </div>
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-green-800" />
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="container mx-auto p-4 md:p-8">
-      <Link href="/competitions" className="inline-flex items-center text-green-800 hover:text-green-700 mb-4">
-        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Competitions
-      </Link>
+      <div className="flex items-center mb-8">
+        <Link href="/competitions">
+          <Button variant="ghost" className="mr-4">
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back
+          </Button>
+        </Link>
+        <h1 className="text-3xl font-bold text-green-800">New Competition</h1>
+      </div>
 
-      <h1 className="text-3xl font-bold mb-8 text-green-800">Create New Competition</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <Card className="mb-6">
             <CardHeader>
               <CardTitle>Competition Type</CardTitle>
             </CardHeader>
             <CardContent>
-              <RadioGroup value={competitionType} onValueChange={setCompetitionType} className="space-y-4">
-                <div
-                  className={`flex items-start space-x-3 p-3 rounded-md border ${
-                    competitionType === "birdie-checklist" ? "border-green-500 bg-green-50" : "border-gray-200"
-                  }`}
-                >
+              <RadioGroup
+                value={competitionType}
+                onValueChange={setCompetitionType}
+                className="space-y-4"
+              >
+                <div className="flex items-center space-x-2">
                   <RadioGroupItem value="birdie-checklist" id="birdie" />
-                  <div className="flex flex-1 items-start space-x-3">
-                    <CheckSquare className="h-5 w-5 text-green-800 mt-0.5" />
+                  <Label
+                    htmlFor="birdie"
+                    className="flex items-center cursor-pointer"
+                  >
+                    <CheckSquare className="h-5 w-5 mr-2 text-green-800" />
                     <div>
-                      <Label htmlFor="birdie" className="text-base font-medium">
-                        Birdie Checklist
-                      </Label>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Compete to log birdies on all 18 holes of a course. Track who has achieved birdies on which
-                        holes.
-                      </p>
+                      <div className="font-medium">Birdie Checklist</div>
+                      <div className="text-sm text-gray-500">
+                        Track birdies on each hole of a course
+                      </div>
                     </div>
-                  </div>
+                  </Label>
                 </div>
-
-                <div
-                  className={`flex items-start space-x-3 p-3 rounded-md border ${
-                    competitionType === "bingo" ? "border-green-500 bg-green-50" : "border-gray-200"
-                  }`}
-                >
+                <div className="flex items-center space-x-2">
                   <RadioGroupItem value="bingo" id="bingo" />
-                  <div className="flex flex-1 items-start space-x-3">
-                    <Grid3X3 className="h-5 w-5 text-green-800 mt-0.5" />
+                  <Label
+                    htmlFor="bingo"
+                    className="flex items-center cursor-pointer"
+                  >
+                    <Grid3X3 className="h-5 w-5 mr-2 text-green-800" />
                     <div>
-                      <Label htmlFor="bingo" className="text-base font-medium">
-                        Bingo Board
-                      </Label>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Create a custom bingo board with golf challenges. Mark squares as you complete them.
-                      </p>
+                      <div className="font-medium">Bingo Board</div>
+                      <div className="text-sm text-gray-500">
+                        Complete golf challenges in a bingo format
+                      </div>
                     </div>
-                  </div>
+                  </Label>
                 </div>
               </RadioGroup>
             </CardContent>
@@ -105,110 +169,119 @@ export default function NewCompetitionPage() {
             <CardHeader>
               <CardTitle>Competition Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="title">Competition Title</Label>
-                <Input id="title" placeholder="Summer Birdie Challenge" />
-              </div>
-
-              <div>
-                <Label htmlFor="description">Description (Optional)</Label>
-                <Textarea id="description" placeholder="Describe the rules and goals of your competition..." rows={3} />
-              </div>
-
-              {competitionType === "bingo" && (
+            <CardContent>
+              <div className="space-y-4">
                 <div>
-                  <Label>Bingo Board Size</Label>
-                  <RadioGroup defaultValue="5x5" className="flex space-x-4 mt-2">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="3x3" id="3x3" />
-                      <Label htmlFor="3x3">3x3</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="4x4" id="4x4" />
-                      <Label htmlFor="4x4">4x4</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="5x5" id="5x5" />
-                      <Label htmlFor="5x5">5x5</Label>
-                    </div>
-                  </RadioGroup>
+                  <Label htmlFor="title">Title</Label>
+                  <Input 
+                    id="title" 
+                    placeholder="e.g., Summer Birdie Challenge" 
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
                 </div>
-              )}
+                <div>
+                  <Label htmlFor="description">Description (Optional)</Label>
+                  <Textarea 
+                    id="description" 
+                    placeholder="Add details about your competition..." 
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
 
         <div>
-          <Card>
+          <Card className="mb-6">
             <CardHeader>
-              <CardTitle>Invite Participants</CardTitle>
+              <CardTitle>Invite Friends</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="mb-4">
-                <Label>Selected Friends ({selectedFriends.length})</Label>
-                <div className="mt-2 min-h-10">
-                  {selectedFriends.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {selectedFriends.map((friend) => (
-                        <div
-                          key={friend.id}
-                          className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full"
-                        >
-                          <span>{friend.name}</span>
-                          <button
-                            onClick={() => toggleFriendSelection(friend)}
-                            className="text-green-800 hover:text-green-600"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-gray-500 text-sm">
-                      No friends selected yet. Select friends below to invite them.
-                    </div>
-                  )}
+              {error ? (
+                <div className="text-center text-red-500 p-4">
+                  Error loading friends: {error}
                 </div>
-              </div>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-2">
-                {friends.map((friend) => (
-                  <div
-                    key={friend.id}
-                    className={`p-2 rounded-md cursor-pointer transition-colors flex items-center justify-between ${
-                      selectedFriends.some((f) => f.id === friend.id)
-                        ? "bg-green-100 border border-green-300"
-                        : "hover:bg-gray-100 border border-transparent"
-                    }`}
-                    onClick={() => toggleFriendSelection(friend)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-gray-500" />
-                      <div>
-                        <div className="font-medium">{friend.name}</div>
-                        <div className="text-xs text-gray-500">Friend ID: {friend.friendId}</div>
+              ) : friends.length === 0 ? (
+                <div className="text-center text-gray-500 p-4">
+                  You don't have any friends yet. Add some to invite to your competition!
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {friends.map((friend) => (
+                    <div
+                      key={friend.id}
+                      className="p-3 rounded-md border border-gray-200 hover:bg-gray-50 cursor-pointer"
+                      onClick={() => toggleFriendSelection(friend)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-green-100 p-2 rounded-full">
+                            <User className="h-5 w-5 text-green-800" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium">{friend.name}</h3>
+                            <p className="text-sm text-gray-500">@{friend.friendId}</p>
+                          </div>
+                        </div>
+                        <div
+                          className={`h-6 w-6 rounded-full flex items-center justify-center ${
+                            selectedFriends.some((f) => f.id === friend.id)
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-400"
+                          }`}
+                        >
+                          {selectedFriends.some((f) => f.id === friend.id) ? (
+                            <Check className="h-4 w-4" />
+                          ) : (
+                            <Plus className="h-4 w-4" />
+                          )}
+                        </div>
                       </div>
                     </div>
-                    {selectedFriends.some((f) => f.id === friend.id) && <Check className="h-4 w-4 text-green-600" />}
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-6">
-                <Button
-                  className="w-full bg-green-800 hover:bg-green-700"
-                  onClick={handleCreateCompetition}
-                  disabled={selectedFriends.length === 0}
-                >
-                  Create Competition
-                </Button>
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          <div className="flex justify-end">
+            <Button 
+              className="bg-green-800 hover:bg-green-700"
+              onClick={handleCreateCompetition}
+              disabled={!title || creating}
+            >
+              {creating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Competition"
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
+  )
+}
+
+function Plus({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M12 5v14M5 12h14" />
+    </svg>
   )
 }

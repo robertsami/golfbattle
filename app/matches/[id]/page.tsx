@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -15,269 +15,324 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Plus, Check, X, Clock } from "lucide-react"
+import { ArrowLeft, Plus, Check, X, Clock, Loader2 } from "lucide-react"
 import { PageParams, ResultCardProps } from "@/types"
+import { useSession } from "next-auth/react"
+import { matchAPI } from "@/lib/api/client"
+import { formatDate } from "@/lib/utils"
 
 export default function MatchDetailPage({ params }: { params: PageParams }) {
+  const { data: session } = useSession()
   const matchId = params.id
-
-  // Mock data for the match
-  const match = {
-    id: matchId,
-    opponent: "John Smith",
-    yourScore: 3,
-    opponentScore: 2,
-    status: "active",
-    startDate: "June 1, 2023",
-    results: [
-      {
-        id: 1,
-        date: "June 1, 2023",
-        yourScore: 72,
-        opponentScore: 75,
-        status: "accepted",
-      },
-      {
-        id: 2,
-        date: "June 15, 2023",
-        yourScore: 74,
-        opponentScore: 71,
-        status: "accepted",
-      },
-      {
-        id: 3,
-        date: "July 2, 2023",
-        yourScore: 70,
-        opponentScore: 73,
-        status: "accepted",
-      },
-      {
-        id: 4,
-        date: "July 20, 2023",
-        yourScore: 75,
-        opponentScore: 72,
-        status: "pending",
-        submittedBy: "opponent",
-      },
-    ],
-  }
-
+  const [match, setMatch] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [isAddResultOpen, setIsAddResultOpen] = useState(false)
   const [newResult, setNewResult] = useState({
-    date: new Date().toISOString().split("T")[0],
     yourScore: "",
     opponentScore: "",
   })
 
-  const handleAddResult = () => {
-    // In a real app, this would send the data to the server
-    console.log("Adding new result:", newResult)
+  // Fetch match data
+  useEffect(() => {
+    const fetchMatch = async () => {
+      try {
+        setLoading(true)
+        const data = await matchAPI.getMatch(matchId)
+        setMatch(data)
+      } catch (err: any) {
+        console.error("Error fetching match:", err)
+        setError(err.message || "Failed to load match")
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchMatch()
+  }, [matchId])
+
+  const handleAddResult = async () => {
+    // In a real app, this would submit to the API
     setIsAddResultOpen(false)
-    // Reset form
-    setNewResult({
-      date: new Date().toISOString().split("T")[0],
-      yourScore: "",
-      opponentScore: "",
-    })
+    
+    try {
+      await matchAPI.addMatchResult(matchId, {
+        player1Score: parseInt(newResult.yourScore),
+        player2Score: parseInt(newResult.opponentScore),
+        submitterId: session?.user?.id,
+        date: new Date().toISOString(),
+      })
+      
+      // Refresh match data
+      const updatedMatch = await matchAPI.getMatch(matchId)
+      setMatch(updatedMatch)
+      
+      // Reset form
+      setNewResult({
+        yourScore: "",
+        opponentScore: "",
+      })
+    } catch (err: any) {
+      console.error("Error adding result:", err)
+      // Show error message to user
+      alert("Failed to add result: " + (err.message || "Unknown error"))
+    }
   }
 
-  const acceptResult = (resultId: number) => {
-    // In a real app, this would send the acceptance to the server
-    console.log("Accepting result:", resultId)
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="container mx-auto p-4 md:p-8">
+        <div className="flex items-center mb-8">
+          <Link href="/matches">
+            <Button variant="ghost" className="mr-4">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+          </Link>
+          <h1 className="text-3xl font-bold text-green-800">Match Details</h1>
+        </div>
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-green-800" />
+        </div>
+      </div>
+    )
   }
 
-  const rejectResult = (resultId: number) => {
-    // In a real app, this would send the rejection to the server
-    console.log("Rejecting result:", resultId)
+  // Show error state
+  if (error) {
+    return (
+      <div className="container mx-auto p-4 md:p-8">
+        <div className="flex items-center mb-8">
+          <Link href="/matches">
+            <Button variant="ghost" className="mr-4">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+          </Link>
+          <h1 className="text-3xl font-bold text-green-800">Match Details</h1>
+        </div>
+        <Card>
+          <CardContent className="p-6 text-center text-red-500">
+            Error loading match: {error}
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
-  const pendingResults = match.results.filter((result) => result.status === "pending")
-  const acceptedResults = match.results.filter((result) => result.status === "accepted")
+  if (!match) {
+    return (
+      <div className="container mx-auto p-4 md:p-8">
+        <div className="flex items-center mb-8">
+          <Link href="/matches">
+            <Button variant="ghost" className="mr-4">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+          </Link>
+          <h1 className="text-3xl font-bold text-green-800">Match Details</h1>
+        </div>
+        <Card>
+          <CardContent className="p-6 text-center text-gray-500">
+            Match not found
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Determine if the current user is player1 or player2
+  const currentUserId = session?.user?.id
+  const isPlayer1 = match.player1Id === currentUserId
+  
+  // Get the opponent's name
+  const opponentName = isPlayer1 ? match.player2?.name : match.player1?.name
+  
+  // Get the scores (from the perspective of the current user)
+  const yourScore = isPlayer1 ? match.player1Score : match.player2Score
+  const opponentScore = isPlayer1 ? match.player2Score : match.player1Score
+  
+  // Format the start date
+  const startDate = formatDate(match.startDate)
+  
+  // Process results
+  const results = match.results?.map((result: any) => ({
+    id: result.id,
+    date: formatDate(result.date),
+    yourScore: isPlayer1 ? result.player1Score : result.player2Score,
+    opponentScore: isPlayer1 ? result.player2Score : result.player1Score,
+    status: result.status,
+    submittedBy: result.submitter?.name || 'Unknown',
+  })) || []
 
   return (
     <div className="container mx-auto p-4 md:p-8">
-      <div className="mb-8">
-        <Link href="/matches" className="inline-flex items-center text-green-800 hover:text-green-700 mb-4">
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back to Matches
-        </Link>
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-green-800">Match vs. {match.opponent}</h1>
-          <Button onClick={() => setIsAddResultOpen(true)} className="bg-green-800 hover:bg-green-700">
-            <Plus className="h-4 w-4 mr-2" /> Add Result
+      <div className="flex items-center mb-8">
+        <Link href="/matches">
+          <Button variant="ghost" className="mr-4">
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back
           </Button>
+        </Link>
+        <h1 className="text-3xl font-bold text-green-800">Match Details</h1>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2">
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold">vs. {opponentName || 'Opponent'}</h2>
+                  <p className="text-gray-500">Started {startDate}</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold mb-1">
+                    <span
+                      className={
+                        yourScore > opponentScore
+                          ? "text-green-600"
+                          : yourScore < opponentScore
+                            ? "text-red-600"
+                            : "text-gray-600"
+                      }
+                    >
+                      {yourScore}
+                    </span>
+                    <span className="mx-2">-</span>
+                    <span
+                      className={
+                        opponentScore > yourScore
+                          ? "text-green-600"
+                          : opponentScore < yourScore
+                            ? "text-red-600"
+                            : "text-gray-600"
+                      }
+                    >
+                      {opponentScore}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500">Current Score</p>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  className="bg-green-800 hover:bg-green-700"
+                  onClick={() => setIsAddResultOpen(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" /> Add Result
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Tabs defaultValue="results">
+            <TabsList className="mb-6">
+              <TabsTrigger value="results">Results</TabsTrigger>
+              <TabsTrigger value="pending">Pending</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="results">
+              <h2 className="text-xl font-bold mb-4 text-gray-800">Match Results</h2>
+              {results.filter(r => r.status === 'accepted').length > 0 ? (
+                <div className="space-y-4">
+                  {results
+                    .filter(r => r.status === 'accepted')
+                    .map((result) => (
+                      <ResultCard key={result.id} result={result} />
+                    ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-6 text-center text-gray-500">
+                    No results yet. Add your first result!
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="pending">
+              <h2 className="text-xl font-bold mb-4 text-gray-800">Pending Results</h2>
+              {results.filter(r => r.status === 'pending').length > 0 ? (
+                <div className="space-y-4">
+                  {results
+                    .filter(r => r.status === 'pending')
+                    .map((result) => (
+                      <PendingResultCard key={result.id} result={result} />
+                    ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-6 text-center text-gray-500">
+                    No pending results.
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
-        <p className="text-gray-600">Started on {match.startDate}</p>
+
+        <div>
+          <Card>
+            <CardContent className="p-6">
+              <h2 className="text-xl font-bold mb-4 text-gray-800">Match Info</h2>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-gray-500">Status</p>
+                  <p className="font-medium capitalize">{match.status}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Start Date</p>
+                  <p className="font-medium">{startDate}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Players</p>
+                  <p className="font-medium">You vs. {opponentName || 'Opponent'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Results</p>
+                  <p className="font-medium">{results.filter(r => r.status === 'accepted').length} submitted</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <div className="text-sm text-gray-500 mb-1">Current Score</div>
-              <div className="flex justify-center items-center gap-2 text-3xl font-bold">
-                <span
-                  className={
-                    match.yourScore > match.opponentScore
-                      ? "text-green-600"
-                      : match.yourScore < match.opponentScore
-                        ? "text-red-600"
-                        : "text-gray-600"
-                  }
-                >
-                  {match.yourScore}
-                </span>
-                <span className="text-gray-400">-</span>
-                <span
-                  className={
-                    match.opponentScore > match.yourScore
-                      ? "text-green-600"
-                      : match.opponentScore < match.yourScore
-                        ? "text-red-600"
-                        : "text-gray-600"
-                  }
-                >
-                  {match.opponentScore}
-                </span>
-              </div>
-              <div className="mt-2 text-sm">
-                <span className="font-medium">You</span> vs. <span className="font-medium">{match.opponent}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <div className="text-sm text-gray-500 mb-1">Total Results</div>
-              <div className="text-3xl font-bold text-gray-800">{match.results.length}</div>
-              <div className="mt-2 text-sm text-gray-600">
-                {acceptedResults.length} accepted, {pendingResults.length} pending
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <div className="text-sm text-gray-500 mb-1">Average Score</div>
-              <div className="flex justify-center items-center gap-2 text-3xl font-bold">
-                <span className="text-gray-800">
-                  {Math.round(
-                    acceptedResults.reduce((sum, result) => sum + result.yourScore, 0) / acceptedResults.length,
-                  )}
-                </span>
-                <span className="text-gray-400">-</span>
-                <span className="text-gray-800">
-                  {Math.round(
-                    acceptedResults.reduce((sum, result) => sum + result.opponentScore, 0) / acceptedResults.length,
-                  )}
-                </span>
-              </div>
-              <div className="mt-2 text-sm text-gray-600">Your average vs. Opponent average</div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="all">All Results</TabsTrigger>
-          <TabsTrigger value="pending">Pending ({pendingResults.length})</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="all">
-          <div className="space-y-4">
-            {match.results.length > 0 ? (
-              match.results.map((result) => (
-                <ResultCard
-                  key={result.id}
-                  result={result}
-                  opponent={match.opponent}
-                  onAccept={acceptResult}
-                  onReject={rejectResult}
-                />
-              ))
-            ) : (
-              <Card>
-                <CardContent className="p-6 text-center text-gray-500">
-                  No results yet. Add your first result to get started!
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="pending">
-          <div className="space-y-4">
-            {pendingResults.length > 0 ? (
-              pendingResults.map((result) => (
-                <ResultCard
-                  key={result.id}
-                  result={result}
-                  opponent={match.opponent}
-                  onAccept={acceptResult}
-                  onReject={rejectResult}
-                />
-              ))
-            ) : (
-              <Card>
-                <CardContent className="p-6 text-center text-gray-500">No pending results to review.</CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
 
       <Dialog open={isAddResultOpen} onOpenChange={setIsAddResultOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add New Result</DialogTitle>
-            <DialogDescription>Enter the scores for your match with {match.opponent}.</DialogDescription>
+            <DialogTitle>Add Match Result</DialogTitle>
+            <DialogDescription>
+              Enter the scores for your match with {opponentName || 'your opponent'}.
+            </DialogDescription>
           </DialogHeader>
-
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="date">Date Played</Label>
-              <Input
-                id="date"
-                type="date"
-                value={newResult.date}
-                onChange={(e) => setNewResult({ ...newResult, date: e.target.value })}
-              />
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
+              <div>
                 <Label htmlFor="yourScore">Your Score</Label>
                 <Input
                   id="yourScore"
                   type="number"
-                  placeholder="72"
                   value={newResult.yourScore}
                   onChange={(e) => setNewResult({ ...newResult, yourScore: e.target.value })}
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="opponentScore">Opponent Score</Label>
+              <div>
+                <Label htmlFor="opponentScore">{opponentName || 'Opponent'}'s Score</Label>
                 <Input
                   id="opponentScore"
                   type="number"
-                  placeholder="75"
                   value={newResult.opponentScore}
                   onChange={(e) => setNewResult({ ...newResult, opponentScore: e.target.value })}
                 />
               </div>
             </div>
           </div>
-
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddResultOpen(false)}>
               Cancel
             </Button>
             <Button className="bg-green-800 hover:bg-green-700" onClick={handleAddResult}>
-              Submit
+              Submit Result
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -286,67 +341,74 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
   )
 }
 
-function ResultCard({ result, opponent, onAccept, onReject }: ResultCardProps) {
+function ResultCard({ result }: { result: any }) {
   return (
-    <Card className={result.status === "pending" ? "border-amber-300" : ""}>
+    <Card>
       <CardContent className="p-4">
         <div className="flex justify-between items-center">
           <div>
-            <div className="text-sm text-gray-500">{result.date}</div>
-            <div className="mt-1 flex items-center gap-2">
-              <div className="text-lg font-medium">
-                <span
-                  className={
-                    result.yourScore < result.opponentScore
-                      ? "text-green-600"
-                      : result.yourScore > result.opponentScore
-                        ? "text-red-600"
-                        : "text-gray-600"
-                  }
-                >
-                  {result.yourScore}
-                </span>
-                <span className="mx-1 text-gray-400">-</span>
-                <span
-                  className={
-                    result.opponentScore < result.yourScore
-                      ? "text-green-600"
-                      : result.opponentScore > result.yourScore
-                        ? "text-red-600"
-                        : "text-gray-600"
-                  }
-                >
-                  {result.opponentScore}
-                </span>
-              </div>
-
-              {result.status === "pending" && (
-                <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
-                  <Clock className="h-3 w-3 mr-1" /> Pending
-                </span>
-              )}
+            <p className="text-sm text-gray-500">{result.date}</p>
+            <p className="text-xs text-gray-400">Submitted by {result.submittedBy}</p>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-bold">
+              <span
+                className={
+                  result.yourScore < result.opponentScore
+                    ? "text-green-600"
+                    : result.yourScore > result.opponentScore
+                      ? "text-red-600"
+                      : "text-gray-600"
+                }
+              >
+                {result.yourScore}
+              </span>
+              <span className="mx-1">-</span>
+              <span
+                className={
+                  result.opponentScore < result.yourScore
+                    ? "text-green-600"
+                    : result.opponentScore > result.yourScore
+                      ? "text-red-600"
+                      : "text-gray-600"
+                }
+              >
+                {result.opponentScore}
+              </span>
             </div>
           </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
-          {result.status === "pending" && result.submittedBy === "opponent" && (
+function PendingResultCard({ result }: { result: any }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Clock className="h-4 w-4 text-amber-500" />
+              <p className="text-sm font-medium">Pending Approval</p>
+            </div>
+            <p className="text-sm text-gray-500">{result.date}</p>
+            <p className="text-xs text-gray-400">Submitted by {result.submittedBy}</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-xl font-bold">
+              {result.yourScore} - {result.opponentScore}
+            </div>
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-red-600 border-red-600 hover:bg-red-50"
-                onClick={() => onReject(result.id)}
-              >
-                <X className="h-4 w-4 mr-1" /> Reject
+              <Button variant="outline" size="icon" className="h-8 w-8 rounded-full text-green-600">
+                <Check className="h-4 w-4" />
               </Button>
-              <Button size="sm" className="bg-green-800 hover:bg-green-700" onClick={() => onAccept(result.id)}>
-                <Check className="h-4 w-4 mr-1" /> Accept
+              <Button variant="outline" size="icon" className="h-8 w-8 rounded-full text-red-600">
+                <X className="h-4 w-4" />
               </Button>
             </div>
-          )}
-
-          {result.status === "pending" && result.submittedBy !== "opponent" && (
-            <div className="text-sm text-gray-500">Waiting for {opponent} to accept</div>
-          )}
+          </div>
         </div>
       </CardContent>
     </Card>
