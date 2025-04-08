@@ -122,24 +122,22 @@ export async function POST(
         },
       });
       
-      // Calculate the new match score
-      let player1Wins = 0;
-      let player2Wins = 0;
+      // Calculate the new match score - for match play, higher is better
+      // and the overall score is the sum of each match score
+      let player1TotalScore = 0;
+      let player2TotalScore = 0;
       
       acceptedResults.forEach(result => {
-        if (result.player1Score > result.player2Score) {
-          player1Wins++;
-        } else if (result.player2Score > result.player1Score) {
-          player2Wins++;
-        }
+        player1TotalScore += result.player1Score;
+        player2TotalScore += result.player2Score;
       });
       
       // Update the match
       await prisma.match.update({
         where: { id: matchId },
         data: {
-          player1Score: player1Wins,
-          player2Score: player2Wins,
+          player1Score: player1TotalScore,
+          player2Score: player2TotalScore,
         },
       });
     }

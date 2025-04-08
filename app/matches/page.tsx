@@ -175,7 +175,7 @@ function MatchCard({ match, currentUserId }: MatchCardProps) {
                 <span
                   className={
                     yourScore > opponentScore
-                      ? "text-green-600"
+                      ? "text-green-600"  // Higher score is better in match play
                       : yourScore < opponentScore
                         ? "text-red-600"
                         : "text-gray-600"
@@ -187,7 +187,7 @@ function MatchCard({ match, currentUserId }: MatchCardProps) {
                 <span
                   className={
                     opponentScore > yourScore
-                      ? "text-green-600"
+                      ? "text-green-600"  // Higher score is better in match play
                       : opponentScore < yourScore
                         ? "text-red-600"
                         : "text-gray-600"
