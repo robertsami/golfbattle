@@ -22,8 +22,8 @@ import { useSession } from "next-auth/react"
 
 
 export default function CompetitionDetailPage({ params }: { params: PageParams }) {
-  // Use React.use to unwrap the params Promise
-  const { id: competitionId } = React.use(params)
+  // Get the competition ID from params
+  const { id: competitionId } = params
   const { data: session } = useSession()
   const [competition, setCompetition] = useState<Competition | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
