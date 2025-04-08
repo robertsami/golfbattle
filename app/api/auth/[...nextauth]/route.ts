@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { AuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
@@ -9,7 +9,7 @@ function generateFriendId(): string {
   return `golf_${Math.random().toString(36).substring(2, 10)}`;
 }
 
-export const authOptions = {
+export const authOptions: AuthOptions = {
   adapter: PrismaAdapter(prisma) as Adapter,
   providers: [
     GoogleProvider({
@@ -90,7 +90,7 @@ export const authOptions = {
     error: "/login",
   },
   session: {
-    strategy: "jwt", // Use JWT for sessions
+    strategy: "jwt" as const, // Use JWT for sessions
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,

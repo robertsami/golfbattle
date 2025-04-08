@@ -158,8 +158,8 @@ export async function POST(request: Request) {
       // Add other participants if provided
       if (participantIds && participantIds.length > 0) {
         const participantData = participantIds
-          .filter(id => id !== creatorId) // Exclude creator as they're already added
-          .map(userId => ({
+          .filter((id: string) => id !== creatorId) // Exclude creator as they're already added
+          .map((userId: string) => ({
             competitionId: newCompetition.id,
             userId,
           }));

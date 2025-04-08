@@ -9,6 +9,7 @@ import { NavItemProps } from "@/types"
 import { Providers } from "./providers"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "./api/auth/[...nextauth]/route"
+import type { AuthOptions } from "next-auth"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -23,7 +24,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions as AuthOptions);
   const user = session?.user;
 
   return (

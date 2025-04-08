@@ -1,4 +1,18 @@
 // Common types for the application
+import { Session } from "next-auth";
+
+// Extend the Session type to include the user id
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      friendId?: string | null;
+    };
+  }
+}
 
 export interface Friend {
   id: number;
@@ -36,12 +50,13 @@ export interface Competition {
   id: string | number;
   title: string;
   type: string;
-  participants: Participant[] | number;
+  participants: Participant[];
   startDate?: string;
   holes?: CompetitionHole[];
   progress?: number;
   total?: number;
   lastActivity?: string;
+  updatedAt?: string;
 }
 
 export interface Participant {
@@ -107,6 +122,6 @@ export interface FeatureCardProps {
   description: string;
 }
 
-export interface PageParams {
+export interface PageParams extends Promise<{ id: string }> {
   id: string;
 }
