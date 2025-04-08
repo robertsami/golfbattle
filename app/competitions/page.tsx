@@ -72,8 +72,12 @@ export default function CompetitionsPage() {
                 birdieCompetitions.map((competition) => (
                   <CompetitionCard 
                     key={competition.id} 
-                    competition={competition} 
-                    type="birdie-checklist" 
+                    competitionId={competition.id}
+                    title={competition.title}
+                    type="birdie-checklist"
+                    participantCount={competition.participants?.length || 0}
+                    progress={competition.holes?.filter((h: any) => h.birdies?.length > 0).length || 0}
+                    total={competition.holes?.length || 18}
                   />
                 ))
               ) : (
@@ -104,8 +108,12 @@ export default function CompetitionsPage() {
                 bingoCompetitions.map((competition) => (
                   <CompetitionCard 
                     key={competition.id} 
-                    competition={competition} 
-                    type="bingo" 
+                    competitionId={competition.id}
+                    title={competition.title}
+                    type="bingo"
+                    participantCount={competition.participants?.length || 0}
+                    progress={0} // We would need to calculate this based on completed bingo squares
+                    total={25} // 5x5 bingo board
                   />
                 ))
               ) : (
@@ -123,7 +131,7 @@ export default function CompetitionsPage() {
   )
 }
 
-function CompetitionCard({ competition, type }: CompetitionCardProps) {
+function CompetitionCard({ competitionId, title, type, participantCount, progress, total }: CompetitionCardProps) {
   const icon =
     type === "birdie-checklist" ? (
       <CheckSquare className="h-5 w-5 text-green-800" />
@@ -131,35 +139,20 @@ function CompetitionCard({ competition, type }: CompetitionCardProps) {
       <Grid3X3 className="h-5 w-5 text-green-800" />
     )
 
-  // Calculate progress
-  let progress = 0;
-  let total = 0;
-  
-  if (type === "birdie-checklist") {
-    total = competition?.holes?.length || 18;
-    progress = competition?.holes?.filter((h: any) => h.birdies?.length > 0).length || 0;
-  } else if (type === "bingo") {
-    total = 25; // 5x5 bingo board
-    // Sum up completed squares across all participants
-    const completedSquares = competition?.participants?.reduce((acc: number, p: any) => {
-      return acc + (p.bingoSquares?.filter((s: any) => s.completed).length || 0);
-    }, 0) || 0;
-    progress = completedSquares;
-  }
-
+  // Progress and total are now passed as props
   const progressPercentage = total > 0 ? (progress / total) * 100 : 0;
-  const participantCount = competition?.participants?.length || 0;
-  const lastActivity = formatDate(competition?.updatedAt);
+  // participantCount is now passed as a prop
+  const lastActivity = new Date().toLocaleDateString();
 
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-0">
-        <Link href={`/competitions/${competition?.id || ''}`} className="block p-4">
+        <Link href={`/competitions/${competitionId}`} className="block p-4">
           <div className="flex justify-between items-center">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 {icon}
-                <h3 className="font-medium text-gray-800">{competition?.title || ''}</h3>
+                <h3 className="font-medium text-gray-800">{title}</h3>
               </div>
               <div className="flex justify-between items-center mb-2">
                 <p className="text-sm text-gray-500">

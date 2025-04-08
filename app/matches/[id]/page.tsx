@@ -353,26 +353,26 @@ function ResultCard({ result }: ResultCardProps) {
             <div className="text-xl font-bold">
               <span
                 className={
-                  result.yourScore < result.opponentScore
+                  result.player1Score < result.player2Score
                     ? "text-green-600"
-                    : result.yourScore > result.opponentScore
+                    : result.player1Score > result.player2Score
                       ? "text-red-600"
                       : "text-gray-600"
                 }
               >
-                {result.yourScore}
+                {result.player1Score}
               </span>
               <span className="mx-1">-</span>
               <span
                 className={
-                  result.opponentScore < result.yourScore
+                  result.player2Score < result.player1Score
                     ? "text-green-600"
-                    : result.opponentScore > result.yourScore
+                    : result.player2Score > result.player1Score
                       ? "text-red-600"
                       : "text-gray-600"
                 }
               >
-                {result.opponentScore}
+                {result.player2Score}
               </span>
             </div>
           </div>

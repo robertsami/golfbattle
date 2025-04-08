@@ -38,8 +38,6 @@ export interface Match {
   startDate?: string;
   createdAt: string;
   updatedAt: string;
-  
-  // From API response
   player1Id: string;
   player2Id: string;
   player1Score: number;
@@ -47,13 +45,6 @@ export interface Match {
   player1: { id: string; name: string; friendId: string };
   player2: { id: string; name: string; friendId: string };
   results: MatchResult[];
-  
-  // Client-side computed properties
-  opponent?: string;
-  yourScore?: number;
-  opponentScore?: number;
-  lastPlayed?: string;
-  pendingResults?: number;
 }
 
 export interface MatchResult {
@@ -70,11 +61,6 @@ export interface MatchResult {
     id: string;
     name: string;
   };
-  
-  // Client-side computed properties
-  yourScore?: number;
-  opponentScore?: number;
-  submittedBy?: string;
 }
 
 export interface Competition {
@@ -85,8 +71,6 @@ export interface Competition {
   startDate: string;
   createdAt: string;
   updatedAt: string;
-  
-  // From API response
   creator: {
     id: string;
     name: string;
@@ -103,11 +87,6 @@ export interface Competition {
     percentage?: number;
   }[];
   holes: CompetitionHole[];
-  
-  // Client-side computed properties
-  progress?: number;
-  total?: number;
-  lastActivity?: string;
 }
 
 export interface Participant {
@@ -119,8 +98,6 @@ export interface Participant {
   };
   
   // Client-side computed properties
-  id?: string; // For backward compatibility
-  name?: string; // For backward compatibility
   completed?: number;
   progress?: number;
   total?: number;
@@ -134,9 +111,6 @@ export interface CompetitionHole {
   createdAt: string;
   updatedAt: string;
   birdies: Birdie[];
-  
-  // For backward compatibility
-  number?: number;
 }
 
 export interface Birdie {
@@ -155,10 +129,6 @@ export interface Birdie {
     id: string;
     name: string;
   } | null;
-  
-  // For backward compatibility
-  userId?: string;
-  attestedBy?: { id: string; name: string } | null;
 }
 
 export interface NavItemProps {

@@ -130,7 +130,7 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
   const participantProgress = competition?.participants
     ?.map((participant: Participant) => {
       const completedHoles = competition?.holes?.filter((hole: CompetitionHole) =>
-        hole.birdies.some((birdie: Birdie) => birdie.userId === participant.id && birdie.date),
+        hole.birdies.some((birdie: Birdie) => birdie.achieverId === participant.userId && birdie.date),
       ).length || 0;
 
       return {
@@ -155,10 +155,10 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         {participantProgress.map((participant: Participant & { completed: number, percentage: number }) => (
-          <Card key={participant.id}>
+          <Card key={participant.userId}>
             <CardContent className="p-4">
               <div className="text-center">
-                <div className="font-medium mb-2">{participant.name}</div>
+                <div className="font-medium mb-2">{participant.user?.name}</div>
                 <div className="text-3xl font-bold text-green-800 mb-2">{participant.completed}/18</div>
                 <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
                   <div className="bg-green-800 h-2 rounded-full" style={{ width: `${participant.percentage}%` }}></div>
@@ -177,7 +177,7 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
             {competition?.holes?.map((hole: CompetitionHole) => (
-              <div key={hole.number} className="relative">
+              <div key={hole.holeNumber} className="relative">
                 <Button
                   variant="outline"
                   className={`w-full h-24 flex flex-col items-center justify-center ${
@@ -185,9 +185,9 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
                       ? "bg-green-100 border-green-500"
                       : ""
                   }`}
-                  onClick={() => handleOpenAddBirdie(hole.number)}
+                  onClick={() => handleOpenAddBirdie(hole.holeNumber)}
                 >
-                  <div className="text-lg font-bold mb-1">Hole {hole.number}</div>
+                  <div className="text-lg font-bold mb-1">Hole {hole.holeNumber}</div>
                   <div className="flex flex-wrap justify-center gap-1">
                     {hole.birdies.map((birdie: Birdie, index: number) =>
                       birdie.date ? (
@@ -232,10 +232,10 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
                 </SelectTrigger>
                 <SelectContent>
                   {competition?.participants
-                    .filter((p: Participant) => p.id !== session?.user?.id) // Filter out yourself
+                    .filter((p: Participant) => p.userId !== session?.user?.id) // Filter out yourself
                     .map((participant: Participant) => (
-                      <SelectItem key={participant.id} value={participant.id.toString()}>
-                        {participant.name}
+                      <SelectItem key={participant.userId} value={participant.userId}>
+                        {participant.user?.name}
                       </SelectItem>
                     ))}
                 </SelectContent>
