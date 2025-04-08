@@ -128,9 +128,6 @@ export default function DashboardPage() {
   useEffect(() => {
     const calculateStats = async () => {
       try {
-        // In a real app, we would fetch this from a dedicated stats endpoint
-        // For now, we'll calculate based on the data we already have
-        
         // Matches played
         const matchesPlayed = matches.length;
         
@@ -271,7 +268,7 @@ export default function DashboardPage() {
                     <MatchCard 
                       key={match.id}
                       matchId={String(match.id)}
-                      opponent={match.player1?.name || match.player2?.name || 'Opponent'}
+                      opponent={match.player2!.name}
                       yourScore={match.player1Score || 0}
                       opponentScore={match.player2Score || 0}
                       lastPlayed={formatDate(match.updatedAt || '')}
