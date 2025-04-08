@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const competitionId = params.id;
+    const { id: competitionId } = params;
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     
@@ -106,7 +106,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const competitionId = params.id;
+    const { id: competitionId } = params;
     const body = await request.json();
     const { squareId, completed, completedDate } = body;
     

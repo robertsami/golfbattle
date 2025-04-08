@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const matchId = params.id;
+    const { id: matchId } = params;
     
     // Validate the match exists
     const match = await prisma.match.findUnique({
@@ -53,7 +53,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const matchId = params.id;
+    const { id: matchId } = params;
     const body = await request.json();
     const { player1Score, player2Score, date, submitterId } = body;
     

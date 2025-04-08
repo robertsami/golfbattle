@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = params.id;
+    const { id: userId } = params;
     
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -95,7 +95,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = params.id;
+    const { id: userId } = params;
     const body = await request.json();
     const { name, email } = body;
     
@@ -136,7 +136,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = params.id;
+    const { id: userId } = params;
     
     // Validate the user exists
     const existingUser = await prisma.user.findUnique({
