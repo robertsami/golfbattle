@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Search, UserPlus } from "lucide-react"
+import { Friend } from "@/types"
 
 export default function NewMatchPage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedFriend, setSelectedFriend] = useState(null)
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null)
 
   // Mock friends data
   const friends = [

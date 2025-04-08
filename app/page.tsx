@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Trophy, Users, CheckSquare, Grid3X3 } from "lucide-react"
+import { FeatureCardProps } from "@/types"
 
 export default function Home() {
   return (
@@ -62,7 +63,7 @@ export default function Home() {
   )
 }
 
-function FeatureCard({ icon, title, description }) {
+function FeatureCard({ icon, title, description }: FeatureCardProps) {
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
       <div className="flex flex-col items-center text-center">

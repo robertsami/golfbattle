@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus, CheckSquare, Grid3X3, ChevronRight } from "lucide-react"
+import { Competition, CompetitionCardProps } from "@/types"
 
 export default function CompetitionsPage() {
   // Mock data for competitions
@@ -14,6 +15,8 @@ export default function CompetitionsPage() {
       progress: 7,
       total: 18,
       lastActivity: "2 days ago",
+      type: "birdie-checklist",
+      startDate: "June 1, 2023",
     },
     {
       id: 2,
@@ -22,6 +25,8 @@ export default function CompetitionsPage() {
       progress: 12,
       total: 18,
       lastActivity: "1 week ago",
+      type: "birdie-checklist",
+      startDate: "May 15, 2023",
     },
   ]
 
@@ -33,6 +38,8 @@ export default function CompetitionsPage() {
       progress: 12,
       total: 25,
       lastActivity: "3 days ago",
+      type: "bingo",
+      startDate: "June 10, 2023",
     },
     {
       id: 4,
@@ -41,6 +48,8 @@ export default function CompetitionsPage() {
       progress: 8,
       total: 25,
       lastActivity: "5 days ago",
+      type: "bingo",
+      startDate: "June 5, 2023",
     },
   ]
 
@@ -97,7 +106,7 @@ export default function CompetitionsPage() {
   )
 }
 
-function CompetitionCard({ competition, type }) {
+function CompetitionCard({ competition, type }: CompetitionCardProps) {
   const icon =
     type === "birdie-checklist" ? (
       <CheckSquare className="h-5 w-5 text-green-800" />
@@ -105,24 +114,26 @@ function CompetitionCard({ competition, type }) {
       <Grid3X3 className="h-5 w-5 text-green-800" />
     )
 
-  const progressPercentage = (competition.progress / competition.total) * 100
+  const progressPercentage = competition && competition.progress && competition.total 
+    ? (competition.progress / competition.total) * 100
+    : 0
 
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-0">
-        <Link href={`/competitions/${competition.id}`} className="block p-4">
+        <Link href={`/competitions/${competition?.id || ''}`} className="block p-4">
           <div className="flex justify-between items-center">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 {icon}
-                <h3 className="font-medium text-gray-800">{competition.title}</h3>
+                <h3 className="font-medium text-gray-800">{competition?.title || ''}</h3>
               </div>
               <div className="flex justify-between items-center mb-2">
                 <p className="text-sm text-gray-500">
-                  {competition.participants} participants • Last activity: {competition.lastActivity}
+                  {typeof competition?.participants === 'number' ? competition?.participants : competition?.participants?.length || 0} participants • Last activity: {competition?.lastActivity || 'N/A'}
                 </p>
                 <p className="text-sm font-medium">
-                  {competition.progress}/{competition.total}
+                  {competition?.progress || 0}/{competition?.total || 0}
                 </p>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">

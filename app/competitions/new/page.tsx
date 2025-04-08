@@ -9,10 +9,11 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, CheckSquare, Grid3X3, X, User, Check } from "lucide-react"
+import { Friend } from "@/types"
 
 export default function NewCompetitionPage() {
   const [competitionType, setCompetitionType] = useState("birdie-checklist")
-  const [selectedFriends, setSelectedFriends] = useState([])
+  const [selectedFriends, setSelectedFriends] = useState<Friend[]>([])
 
   // Mock friends data
   const friends = [
@@ -23,7 +24,7 @@ export default function NewCompetitionPage() {
     { id: 5, name: "James Davis", friendId: "james654" },
   ]
 
-  const toggleFriendSelection = (friend) => {
+  const toggleFriendSelection = (friend: Friend) => {
     if (selectedFriends.some((f) => f.id === friend.id)) {
       setSelectedFriends(selectedFriends.filter((f) => f.id !== friend.id))
     } else {

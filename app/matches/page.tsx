@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Plus, ChevronRight } from "lucide-react"
+import { Match, MatchCardProps } from "@/types"
 
 export default function MatchesPage() {
   // Mock data for matches
@@ -102,7 +103,7 @@ export default function MatchesPage() {
   )
 }
 
-function MatchCard({ match }) {
+function MatchCard({ match }: MatchCardProps) {
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-0">
@@ -111,7 +112,7 @@ function MatchCard({ match }) {
             <div>
               <h3 className="font-medium text-gray-800">vs. {match.opponent}</h3>
               <p className="text-sm text-gray-500">Last played: {match.lastPlayed}</p>
-              {match.pendingResults > 0 && (
+              {match.pendingResults !== undefined && match.pendingResults > 0 && (
                 <div className="mt-1">
                   <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
                     {match.pendingResults} pending {match.pendingResults === 1 ? "result" : "results"}

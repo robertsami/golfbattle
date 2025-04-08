@@ -16,8 +16,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Plus, Check, X, Clock } from "lucide-react"
+import { PageParams, ResultCardProps } from "@/types"
 
-export default function MatchDetailPage({ params }) {
+export default function MatchDetailPage({ params }: { params: PageParams }) {
   const matchId = params.id
 
   // Mock data for the match
@@ -80,12 +81,12 @@ export default function MatchDetailPage({ params }) {
     })
   }
 
-  const acceptResult = (resultId) => {
+  const acceptResult = (resultId: number) => {
     // In a real app, this would send the acceptance to the server
     console.log("Accepting result:", resultId)
   }
 
-  const rejectResult = (resultId) => {
+  const rejectResult = (resultId: number) => {
     // In a real app, this would send the rejection to the server
     console.log("Rejecting result:", resultId)
   }
@@ -285,7 +286,7 @@ export default function MatchDetailPage({ params }) {
   )
 }
 
-function ResultCard({ result, opponent, onAccept, onReject }) {
+function ResultCard({ result, opponent, onAccept, onReject }: ResultCardProps) {
   return (
     <Card className={result.status === "pending" ? "border-amber-300" : ""}>
       <CardContent className="p-4">

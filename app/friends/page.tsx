@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { UserPlus, Search, User, Trophy, CheckSquare, Grid3X3 } from "lucide-react"
+import { Friend } from "@/types"
 
 export default function FriendsPage() {
   // Mock friends data
@@ -86,7 +87,7 @@ export default function FriendsPage() {
   )
 }
 
-function FriendCard({ friend }) {
+function FriendCard({ friend }: { friend: Friend }) {
   return (
     <Card>
       <CardContent className="p-4">
@@ -105,19 +106,19 @@ function FriendCard({ friend }) {
             <div className="flex items-center gap-2">
               <Trophy className="h-4 w-4 text-green-800" />
               <span className="text-sm">
-                <span className="font-medium">{friend.stats.matches}</span> matches
+                <span className="font-medium">{friend.stats?.matches || 0}</span> matches
               </span>
             </div>
             <div className="flex items-center gap-2">
               <CheckSquare className="h-4 w-4 text-green-800" />
               <span className="text-sm">
-                <span className="font-medium">{friend.stats.birdies}</span> birdies
+                <span className="font-medium">{friend.stats?.birdies || 0}</span> birdies
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Grid3X3 className="h-4 w-4 text-green-800" />
               <span className="text-sm">
-                <span className="font-medium">{friend.stats.bingoSquares}</span> bingo squares
+                <span className="font-medium">{friend.stats?.bingoSquares || 0}</span> bingo squares
               </span>
             </div>
           </div>

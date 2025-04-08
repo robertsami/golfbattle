@@ -7,11 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Copy, Check, User } from "lucide-react"
+import { Friend } from "@/types"
 
 export default function AddFriendPage() {
   const [friendId, setFriendId] = useState("")
   const [copied, setCopied] = useState(false)
-  const [searchResult, setSearchResult] = useState(null)
+  const [searchResult, setSearchResult] = useState<Friend | null>(null)
 
   // Mock your own friend ID
   const myFriendId = "golf_user_123456"

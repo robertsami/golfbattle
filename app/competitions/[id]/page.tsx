@@ -16,8 +16,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Check } from "lucide-react"
+import { PageParams } from "@/types"
 
-export default function CompetitionDetailPage({ params }) {
+export default function CompetitionDetailPage({ params }: { params: PageParams }) {
   const competitionId = params.id
 
   // Mock data for the competition (birdie checklist example)
@@ -44,10 +45,10 @@ export default function CompetitionDetailPage({ params }) {
   }
 
   const [isAddBirdieOpen, setIsAddBirdieOpen] = useState(false)
-  const [selectedHole, setSelectedHole] = useState(null)
+  const [selectedHole, setSelectedHole] = useState<number | null>(null)
   const [attestedBy, setAttestedBy] = useState("")
 
-  const handleOpenAddBirdie = (holeNumber) => {
+  const handleOpenAddBirdie = (holeNumber: number) => {
     setSelectedHole(holeNumber)
     setIsAddBirdieOpen(true)
   }

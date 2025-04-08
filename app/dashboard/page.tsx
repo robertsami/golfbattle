@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { CheckSquare, Grid3X3, Plus } from "lucide-react"
+import { StatsCardProps, DashboardMatchCardProps, CompetitionCardProps } from "@/types"
 
 export default function Dashboard() {
   return (
@@ -75,7 +76,7 @@ export default function Dashboard() {
   )
 }
 
-function StatsCard({ title, value }) {
+function StatsCard({ title, value }: StatsCardProps) {
   return (
     <Card>
       <CardContent className="p-6">
@@ -86,7 +87,7 @@ function StatsCard({ title, value }) {
   )
 }
 
-function MatchCard({ opponent, yourScore, opponentScore, lastPlayed }) {
+function MatchCard({ opponent, yourScore, opponentScore, lastPlayed }: DashboardMatchCardProps) {
   return (
     <Card>
       <CardContent className="p-4">
@@ -126,7 +127,7 @@ function MatchCard({ opponent, yourScore, opponentScore, lastPlayed }) {
   )
 }
 
-function CompetitionCard({ title, type, participants, progress, total }) {
+function CompetitionCard({ title, type, participants, progress, total }: CompetitionCardProps) {
   const icon =
     type === "birdie-checklist" ? (
       <CheckSquare className="h-5 w-5 text-green-800" />
@@ -134,7 +135,7 @@ function CompetitionCard({ title, type, participants, progress, total }) {
       <Grid3X3 className="h-5 w-5 text-green-800" />
     )
 
-  const progressPercentage = (progress / total) * 100
+  const progressPercentage = progress !== undefined && total !== undefined ? (progress / total) * 100 : 0
 
   return (
     <Card>
@@ -144,7 +145,7 @@ function CompetitionCard({ title, type, participants, progress, total }) {
           <h3 className="font-medium text-gray-800">{title}</h3>
         </div>
         <div className="flex justify-between items-center mb-2">
-          <p className="text-sm text-gray-500">{participants} participants</p>
+          <p className="text-sm text-gray-500">{typeof participants === 'number' ? participants : participants?.length || 0} participants</p>
           <p className="text-sm font-medium">
             {progress}/{total}
           </p>

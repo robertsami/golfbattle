@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Home, Trophy, Users, CheckSquare, User, LogOut } from "lucide-react"
+import { NavItemProps } from "@/types"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -107,7 +108,7 @@ export default function RootLayout({
   )
 }
 
-function NavItem({ href, icon, label }) {
+function NavItem({ href, icon, label }: NavItemProps) {
   return (
     <Link href={href} className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-green-700 transition-colors">
       {icon}
@@ -116,7 +117,7 @@ function NavItem({ href, icon, label }) {
   )
 }
 
-function MobileNavItem({ href, icon, label }) {
+function MobileNavItem({ href, icon, label }: NavItemProps) {
   return (
     <Link href={href} className="flex flex-col items-center py-2 px-4 text-gray-600 hover:text-green-800">
       {icon}
