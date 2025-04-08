@@ -274,7 +274,6 @@ async function createCompetitions(users: any[]) {
       type: 'birdie-checklist',
       creatorId: currentUser.id,
       startDate: add(new Date(), { days: -30 }),
-      status: 'active',
     },
   });
 
@@ -348,7 +347,6 @@ async function createCompetitions(users: any[]) {
       type: 'bingo',
       creatorId: users[1].id,
       startDate: add(new Date(), { days: -20 }),
-      status: 'active',
     },
   });
 
@@ -432,7 +430,6 @@ async function createCompetitions(users: any[]) {
       type: 'birdie-checklist',
       creatorId: users[2].id,
       startDate: add(new Date(), { days: -15 }),
-      status: 'active',
     },
   });
 
@@ -496,7 +493,6 @@ async function createCompetitions(users: any[]) {
       type: 'bingo',
       creatorId: users[3].id,
       startDate: add(new Date(), { days: -10 }),
-      status: 'active',
     },
   });
 
