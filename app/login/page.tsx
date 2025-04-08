@@ -1,20 +1,35 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { signIn, useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { ClubIcon as GolfIcon } from "lucide-react"
 
 export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(false)
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/dashboard");
+    }
+  }, [status, router]);
 
   const handleGoogleLogin = async () => {
-    setIsLoading(true)
-    // In a real implementation, this would redirect to Google OAuth
-    // For now, we'll just simulate a delay
-    setTimeout(() => {
-      window.location.href = "/dashboard"
-    }, 1000)
+    setIsLoading(true);
+    await signIn("google", { callbackUrl: "/dashboard" });
+  };
+
+  if (status === "loading" || (isLoading && status !== "authenticated")) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-800"></div>
+      </div>
+    );
   }
 
   return (

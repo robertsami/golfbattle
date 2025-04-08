@@ -8,10 +8,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CheckSquare, Grid3X3, Trophy, ChevronRight, Loader2 } from "lucide-react"
 import { competitionAPI, matchAPI, userAPI } from "@/lib/api/client"
 
-// Mock user ID until we have authentication
-const CURRENT_USER_ID = "placeholder-user-id";
+import { useSession } from "next-auth/react";
+
+// Get the current user from the session
+function useCurrentUser() {
+  const { data: session } = useSession();
+  return session?.user;
+}
 
 export default function DashboardPage() {
+  const currentUser = useCurrentUser();
+  const userId = currentUser?.id;
+  
   const [competitions, setCompetitions] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
   const [friends, setFriends] = useState<any[]>([]);
@@ -37,7 +45,10 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchCompetitions = async () => {
       try {
-        const data = await competitionAPI.getCompetitions();
+        // Only fetch if we have a user ID
+        if (!userId) return;
+        
+        const data = await competitionAPI.getCompetitions(userId);
         // Sort by most recent
         const sortedData = [...data].sort((a, b) => 
           new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -52,13 +63,16 @@ export default function DashboardPage() {
     };
 
     fetchCompetitions();
-  }, []);
+  }, [userId]);
 
   // Fetch matches
   useEffect(() => {
     const fetchMatches = async () => {
       try {
-        const data = await matchAPI.getMatches();
+        // Only fetch if we have a user ID
+        if (!userId) return;
+        
+        const data = await matchAPI.getMatches(userId);
         // Sort by most recent
         const sortedData = [...data].sort((a, b) => 
           new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -73,13 +87,16 @@ export default function DashboardPage() {
     };
 
     fetchMatches();
-  }, []);
+  }, [userId]);
 
   // Fetch friends
   useEffect(() => {
     const fetchFriends = async () => {
       try {
-        const data = await userAPI.getUsers();
+        // Only fetch if we have a user ID
+        if (!userId) return;
+        
+        const data = await userAPI.getUserFriends(userId);
         setFriends(data.slice(0, 3)); // Just show the first 3 friends
       } catch (err: any) {
         console.error("Error fetching friends:", err);
@@ -90,7 +107,7 @@ export default function DashboardPage() {
     };
 
     fetchFriends();
-  }, []);
+  }, [userId]);
 
   // Calculate stats
   useEffect(() => {

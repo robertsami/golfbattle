@@ -12,13 +12,24 @@ async function fetchAPI<T>(
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
   
+  // Get the CSRF token for Next-Auth
+  const csrfToken = await getCsrfToken();
+  
   const response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(csrfToken ? { 'csrf-token': csrfToken } : {}),
       ...options.headers,
     },
+    credentials: 'include', // Include cookies for authentication
   });
+
+  // Handle 401 Unauthorized by redirecting to login
+  if (response.status === 401) {
+    window.location.href = `/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`;
+    throw new Error('Authentication required');
+  }
 
   const data = await response.json();
 
@@ -27,6 +38,18 @@ async function fetchAPI<T>(
   }
 
   return data as T;
+}
+
+// Helper function to get CSRF token
+async function getCsrfToken(): Promise<string | null> {
+  try {
+    const response = await fetch('/api/auth/csrf');
+    const data = await response.json();
+    return data.csrfToken || null;
+  } catch (error) {
+    console.error('Failed to fetch CSRF token:', error);
+    return null;
+  }
 }
 
 // User API functions
