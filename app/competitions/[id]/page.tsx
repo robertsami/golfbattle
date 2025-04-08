@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, use } from "react";
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,14 +21,15 @@ import { competitionAPI } from "@/lib/api/client"
 import { useSession } from "next-auth/react"
 
 
-export default function CompetitionDetailPage({ params }: { params: PageParams }) {
+export default function CompetitionDetailPage(props: { params: Promise<PageParams> }) {
+  const params = use(props.params);
   // Get the competition ID from params
   const { id: competitionId } = params
   const { data: session } = useSession()
   const [competition, setCompetition] = useState<Competition | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   // Fetch competition data
   useEffect(() => {
     const fetchCompetition = async () => {
@@ -50,7 +51,7 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
   const [isAddBirdieOpen, setIsAddBirdieOpen] = useState(false)
   const [selectedHole, setSelectedHole] = useState<number | null>(null)
   const [attestedBy, setAttestedBy] = useState("")
-  
+
   // Bingo state
   const [isAddBingoSquareOpen, setIsAddBingoSquareOpen] = useState(false)
   const [bingoSquareText, setBingoSquareText] = useState("")
@@ -95,11 +96,11 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
       alert("Failed to add birdie: " + (error.message || "Please try again."));
     }
   }
-  
+
   const handleOpenAddBingoSquare = () => {
     setIsAddBingoSquareOpen(true);
   }
-  
+
   const handleAddBingoSquare = async () => {
     if (!bingoSquareText || bingoSquarePosition < 0 || bingoSquarePosition > 24) {
       alert("Please enter valid square text and position (0-24)");
