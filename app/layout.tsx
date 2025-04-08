@@ -165,8 +165,4 @@ function MobileNavItem({ href, icon, label }: NavItemProps) {
 }
 
 
-import './globals.css'
-
-export const metadata = {
-      generator: 'v0.dev'
-    };
+// globals.css is already imported at the top
