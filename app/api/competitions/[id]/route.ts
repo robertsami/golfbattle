@@ -7,7 +7,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id: competitionId } = params;
+    // Ensure params is properly awaited
+    const competitionId = params?.id;
     
     const competition = await prisma.competition.findUnique({
       where: { id: competitionId },
@@ -140,7 +141,8 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id: competitionId } = params;
+    // Ensure params is properly awaited
+    const competitionId = params?.id;
     const body = await request.json();
     const { title, endDate } = body;
     
@@ -181,7 +183,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id: competitionId } = params;
+    // Ensure params is properly awaited
+    const competitionId = params?.id;
     
     // Validate the competition exists
     const existingCompetition = await prisma.competition.findUnique({
