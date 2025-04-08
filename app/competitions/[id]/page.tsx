@@ -20,29 +20,27 @@ import { PageParams } from "@/types"
 
 export default function CompetitionDetailPage({ params }: { params: PageParams }) {
   const competitionId = params.id
-
-  // Mock data for the competition (birdie checklist example)
-  const competition = {
-    id: competitionId,
-    title: "Summer Birdie Challenge",
-    type: "birdie-checklist",
-    participants: [
-      { id: 1, name: "You" },
-      { id: 2, name: "John Smith" },
-      { id: 3, name: "Mike Johnson" },
-      { id: 4, name: "Dave Wilson" },
-    ],
-    startDate: "June 1, 2023",
-    holes: Array.from({ length: 18 }, (_, i) => ({
-      number: i + 1,
-      birdies: [
-        { userId: 1, date: i < 7 ? "July 15, 2023" : null, attestedBy: i < 5 ? { id: 2, name: "John Smith" } : null },
-        { userId: 2, date: i < 10 ? "July 10, 2023" : null, attestedBy: i < 8 ? { id: 1, name: "You" } : null },
-        { userId: 3, date: i < 5 ? "July 5, 2023" : null, attestedBy: i < 3 ? { id: 4, name: "Dave Wilson" } : null },
-        { userId: 4, date: i < 3 ? "July 1, 2023" : null, attestedBy: i < 2 ? { id: 3, name: "Mike Johnson" } : null },
-      ],
-    })),
-  }
+  const [competition, setCompetition] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
+  // Fetch competition data
+  useEffect(() => {
+    const fetchCompetition = async () => {
+      try {
+        setLoading(true)
+        const data = await fetch(`/api/competitions/${competitionId}`).then(res => res.json())
+        setCompetition(data)
+      } catch (err: any) {
+        console.error("Error fetching competition:", err)
+        setError(err.message || "Failed to load competition")
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchCompetition()
+  }, [competitionId])
 
   const [isAddBirdieOpen, setIsAddBirdieOpen] = useState(false)
   const [selectedHole, setSelectedHole] = useState<number | null>(null)
