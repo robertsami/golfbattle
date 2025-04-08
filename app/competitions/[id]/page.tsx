@@ -18,11 +18,13 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Check } from "lucide-react"
 import { competitionAPI } from "@/lib/api/client"
+import { useSession } from "next-auth/react"
 
 
 export default function CompetitionDetailPage({ params }: { params: PageParams }) {
   // Use React.use to unwrap the params Promise
   const { id: competitionId } = React.use(params)
+  const { data: session } = useSession()
   const [competition, setCompetition] = useState<Competition | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -32,7 +34,7 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
     const fetchCompetition = async () => {
       try {
         setLoading(true)
-        const data = await fetch(`/api/competitions/${competitionId}`).then(res => res.json())
+        const data = await competitionAPI.getCompetition(competitionId)
         setCompetition(data)
       } catch (err: any) {
         console.error("Error fetching competition:", err)
@@ -60,17 +62,24 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
   }
 
   const handleAddBirdie = async () => {
-    if (!selectedHole) return;
+    if (!selectedHole || !session?.user?.id) {
+      alert("You must be logged in to add a birdie");
+      return;
+    }
     
     try {
-      // Get the current user ID (using 1 as a placeholder for now)
-      const userId = 1; // In a real app, this would come from the session
+      // Get the current user ID from the session
+      const userId = session.user.id;
+      
+      // Get the date from the date input
+      const dateInput = document.getElementById('date') as HTMLInputElement;
+      const dateValue = dateInput?.value || new Date().toISOString().split('T')[0];
       
       await competitionAPI.addBirdie(competitionId, {
         holeNumber: selectedHole,
         achieverId: userId,
         attesterId: attestedBy ? parseInt(attestedBy) : null,
-        date: new Date().toISOString()
+        date: new Date(dateValue).toISOString()
       });
       
       // Refresh the competition data
@@ -81,9 +90,9 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
       setIsAddBirdieOpen(false);
       setSelectedHole(null);
       setAttestedBy("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding birdie:", error);
-      alert("Failed to add birdie. Please try again.");
+      alert("Failed to add birdie: " + (error.message || "Please try again."));
     }
   }
   
@@ -172,7 +181,7 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
                 <Button
                   variant="outline"
                   className={`w-full h-24 flex flex-col items-center justify-center ${
-                    hole.birdies.some((birdie: Birdie) => birdie.userId === 1 && birdie.date)
+                    hole.birdies.some((birdie: Birdie) => birdie.userId === session?.user?.id && birdie.date)
                       ? "bg-green-100 border-green-500"
                       : ""
                   }`}
@@ -184,14 +193,14 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
                       birdie.date ? (
                         <div
                           key={index}
-                          className={`w-3 h-3 rounded-full ${birdie.userId === 1 ? "bg-green-600" : "bg-gray-400"}`}
+                          className={`w-3 h-3 rounded-full ${birdie.userId === session?.user?.id ? "bg-green-600" : "bg-gray-400"}`}
                           title={`${competition?.participants?.find((p: Participant) => p.id === birdie.userId)?.name} - ${birdie.date}`}
                         />
                       ) : null,
                     )}
                   </div>
                 </Button>
-                {hole.birdies.some((birdie: Birdie) => birdie.userId === 1 && birdie.date) && (
+                {hole.birdies.some((birdie: Birdie) => birdie.userId === session?.user?.id && birdie.date) && (
                   <div className="absolute top-2 right-2">
                     <Check className="h-4 w-4 text-green-600" />
                   </div>
@@ -223,7 +232,7 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
                 </SelectTrigger>
                 <SelectContent>
                   {competition?.participants
-                    .filter((p: Participant) => p.id !== 1) // Filter out yourself
+                    .filter((p: Participant) => p.id !== session?.user?.id) // Filter out yourself
                     .map((participant: Participant) => (
                       <SelectItem key={participant.id} value={participant.id.toString()}>
                         {participant.name}
