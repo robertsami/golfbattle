@@ -99,7 +99,7 @@ export async function POST(
         player1Score: parseInt(player1Score),
         player2Score: parseInt(player2Score),
         date: new Date(date),
-        status: 'pending',
+        status: 'accepted', // Changed from 'pending' to 'accepted'
       },
       include: {
         submitter: {

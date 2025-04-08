@@ -74,9 +74,9 @@ export default function NewCompetitionPage() {
         creatorId: session.user.id,
         startDate: new Date().toISOString(),
         status: 'active',
-        participants: [
+        participantIds: [
           session.user.id, // Include the current user
-          ...selectedFriends.map(f => f.id) // Include selected friends
+          ...selectedFriends.map(f => f.id.toString()) // Include selected friends
         ]
       })
       

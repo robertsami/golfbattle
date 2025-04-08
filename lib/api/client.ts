@@ -162,6 +162,12 @@ export const competitionAPI = {
     return fetchAPI<any[]>(`/api/competitions/${id}/bingo${query}`);
   },
   
+  // Create a bingo square
+  createBingoSquare: (id: string, squareData: any) => fetchAPI<any>(`/api/competitions/${id}/bingo`, {
+    method: 'POST',
+    body: JSON.stringify(squareData),
+  }),
+  
   // Update a bingo square
   updateBingoSquare: (id: string, squareData: any) => fetchAPI<any>(`/api/competitions/${id}/bingo`, {
     method: 'PUT',

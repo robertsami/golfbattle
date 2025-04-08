@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Check } from "lucide-react"
+import { competitionAPI } from "@/lib/api/client"
 
 
 export default function CompetitionDetailPage({ params }: { params: PageParams }) {
@@ -47,18 +48,73 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
   const [isAddBirdieOpen, setIsAddBirdieOpen] = useState(false)
   const [selectedHole, setSelectedHole] = useState<number | null>(null)
   const [attestedBy, setAttestedBy] = useState("")
+  
+  // Bingo state
+  const [isAddBingoSquareOpen, setIsAddBingoSquareOpen] = useState(false)
+  const [bingoSquareText, setBingoSquareText] = useState("")
+  const [bingoSquarePosition, setBingoSquarePosition] = useState(0)
 
   const handleOpenAddBirdie = (holeNumber: number) => {
     setSelectedHole(holeNumber)
     setIsAddBirdieOpen(true)
   }
 
-  const handleAddBirdie = () => {
-    // In a real app, this would send the data to the server
-    console.log("Adding birdie for hole:", selectedHole, "attested by:", attestedBy)
-    setIsAddBirdieOpen(false)
-    setSelectedHole(null)
-    setAttestedBy("")
+  const handleAddBirdie = async () => {
+    if (!selectedHole) return;
+    
+    try {
+      // Get the current user ID (using 1 as a placeholder for now)
+      const userId = 1; // In a real app, this would come from the session
+      
+      await competitionAPI.addBirdie(competitionId, {
+        holeNumber: selectedHole,
+        achieverId: userId,
+        attesterId: attestedBy ? parseInt(attestedBy) : null,
+        date: new Date().toISOString()
+      });
+      
+      // Refresh the competition data
+      const updatedCompetition = await competitionAPI.getCompetition(competitionId);
+      setCompetition(updatedCompetition);
+      
+      // Close the dialog
+      setIsAddBirdieOpen(false);
+      setSelectedHole(null);
+      setAttestedBy("");
+    } catch (error) {
+      console.error("Error adding birdie:", error);
+      alert("Failed to add birdie. Please try again.");
+    }
+  }
+  
+  const handleOpenAddBingoSquare = () => {
+    setIsAddBingoSquareOpen(true);
+  }
+  
+  const handleAddBingoSquare = async () => {
+    if (!bingoSquareText || bingoSquarePosition < 0 || bingoSquarePosition > 24) {
+      alert("Please enter valid square text and position (0-24)");
+      return;
+    }
+    
+    try {
+      await competitionAPI.createBingoSquare(competitionId, {
+        text: bingoSquareText,
+        position: bingoSquarePosition
+      });
+      
+      // Refresh the competition data
+      const updatedCompetition = await competitionAPI.getCompetition(competitionId);
+      setCompetition(updatedCompetition);
+      
+      // Close the dialog and reset form
+      setIsAddBingoSquareOpen(false);
+      setBingoSquareText("");
+      setBingoSquarePosition(0);
+    } catch (error) {
+      console.error("Error adding bingo square:", error);
+      alert("Failed to add bingo square. Please try again.");
+    }
   }
 
   // Calculate progress for each participant
@@ -189,6 +245,62 @@ export default function CompetitionDetailPage({ params }: { params: PageParams }
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bingo Square Dialog */}
+      <Dialog open={isAddBingoSquareOpen} onOpenChange={setIsAddBingoSquareOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Bingo Square</DialogTitle>
+            <DialogDescription>Create a new square for your bingo card.</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="bingoText">Square Text</Label>
+              <Input 
+                id="bingoText" 
+                value={bingoSquareText} 
+                onChange={(e) => setBingoSquareText(e.target.value)} 
+                placeholder="e.g., Hit a 300-yard drive"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="bingoPosition">Position (0-24)</Label>
+              <Input 
+                id="bingoPosition" 
+                type="number" 
+                min="0" 
+                max="24" 
+                value={bingoSquarePosition} 
+                onChange={(e) => setBingoSquarePosition(parseInt(e.target.value))} 
+              />
+              <p className="text-sm text-gray-500">Position 0 is top-left, 24 is bottom-right (5x5 grid)</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddBingoSquareOpen(false)}>
+              Cancel
+            </Button>
+            <Button className="bg-green-800 hover:bg-green-700" onClick={handleAddBingoSquare}>
+              Add Square
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Bingo Square Button - Only show for bingo competitions */}
+      {competition?.type === 'bingo' && (
+        <div className="mt-8">
+          <Button 
+            className="bg-green-800 hover:bg-green-700"
+            onClick={handleOpenAddBingoSquare}
+          >
+            Add Bingo Square
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

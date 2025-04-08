@@ -101,6 +101,62 @@ export async function GET(
   }
 }
 
+// POST /api/competitions/[id]/bingo - Create a bingo square
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Ensure params is properly awaited
+    const { id: competitionId } = await params;
+    const body = await request.json();
+    const { text, position } = body;
+    
+    if (!text || position === undefined) {
+      return NextResponse.json(
+        { error: 'Text and position are required' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate the competition exists and is a bingo competition
+    const competition = await prisma.competition.findUnique({
+      where: { id: competitionId },
+    });
+    
+    if (!competition) {
+      return NextResponse.json(
+        { error: 'Competition not found' },
+        { status: 404 }
+      );
+    }
+    
+    if (competition.type !== 'bingo') {
+      return NextResponse.json(
+        { error: 'This competition is not a bingo competition' },
+        { status: 400 }
+      );
+    }
+    
+    // Create the bingo square
+    const bingoSquare = await prisma.bingoSquare.create({
+      data: {
+        competitionId,
+        text,
+        position,
+      },
+    });
+    
+    return NextResponse.json(bingoSquare);
+  } catch (error) {
+    console.error('Error creating bingo square:', error);
+    return NextResponse.json(
+      { error: 'Failed to create bingo square' },
+      { status: 500 }
+    );
+  }
+}
+
 // PUT /api/competitions/[id]/bingo - Update a bingo square
 export async function PUT(
   request: Request,

@@ -32,9 +32,11 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
   const [newResult, setNewResult] = useState<{
     yourScore: string;
     opponentScore: string;
+    date: string;
   }>({
     yourScore: "",
     opponentScore: "",
+    date: new Date().toISOString().split('T')[0]
   })
 
   // Fetch match data
@@ -64,7 +66,7 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
         player1Score: parseInt(newResult.yourScore),
         player2Score: parseInt(newResult.opponentScore),
         submitterId: session?.user?.id,
-        date: new Date().toISOString(),
+        date: new Date(newResult.date).toISOString(),
       })
       
       // Refresh match data
@@ -75,6 +77,7 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
       setNewResult({
         yourScore: "",
         opponentScore: "",
+        date: new Date().toISOString().split('T')[0]
       })
     } catch (err: any) {
       console.error("Error adding result:", err)
@@ -231,7 +234,6 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
           <Tabs defaultValue="results">
             <TabsList className="mb-6">
               <TabsTrigger value="results">Results</TabsTrigger>
-              <TabsTrigger value="pending">Pending</TabsTrigger>
             </TabsList>
 
             <TabsContent value="results">
@@ -248,25 +250,6 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
                 <Card>
                   <CardContent className="p-6 text-center text-gray-500">
                     No results yet. Add your first result!
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-
-            <TabsContent value="pending">
-              <h2 className="text-xl font-bold mb-4 text-gray-800">Pending Results</h2>
-              {results.filter((r: MatchResult) => r.status === 'pending').length > 0 ? (
-                <div className="space-y-4">
-                  {results
-                    .filter((r: MatchResult) => r.status === 'pending')
-                    .map((result: MatchResult) => (
-                      <PendingResultCard key={result.id} result={result} />
-                    ))}
-                </div>
-              ) : (
-                <Card>
-                  <CardContent className="p-6 text-center text-gray-500">
-                    No pending results.
                   </CardContent>
                 </Card>
               )}
@@ -310,24 +293,36 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4">
               <div>
-                <Label htmlFor="yourScore">Your Score</Label>
+                <Label htmlFor="matchDate">Date</Label>
                 <Input
-                  id="yourScore"
-                  type="number"
-                  value={newResult.yourScore}
-                  onChange={(e) => setNewResult({ ...newResult, yourScore: e.target.value })}
+                  id="matchDate"
+                  type="date"
+                  value={newResult.date}
+                  onChange={(e) => setNewResult({ ...newResult, date: e.target.value })}
                 />
               </div>
-              <div>
-                <Label htmlFor="opponentScore">{opponentName || 'Opponent'}'s Score</Label>
-                <Input
-                  id="opponentScore"
-                  type="number"
-                  value={newResult.opponentScore}
-                  onChange={(e) => setNewResult({ ...newResult, opponentScore: e.target.value })}
-                />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="yourScore">Your Score</Label>
+                  <Input
+                    id="yourScore"
+                    type="number"
+                    value={newResult.yourScore}
+                    onChange={(e) => setNewResult({ ...newResult, yourScore: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="opponentScore">{opponentName || 'Opponent'}'s Score</Label>
+                  <Input
+                    id="opponentScore"
+                    type="number"
+                    value={newResult.opponentScore}
+                    onChange={(e) => setNewResult({ ...newResult, opponentScore: e.target.value })}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -351,8 +346,8 @@ function ResultCard({ result }: { result: any }) {
       <CardContent className="p-4">
         <div className="flex justify-between items-center">
           <div>
-            <p className="text-sm text-gray-500">{result.date}</p>
-            <p className="text-xs text-gray-400">Submitted by {result.submittedBy}</p>
+            <p className="text-sm text-gray-500">{new Date(result.date).toLocaleDateString()}</p>
+            <p className="text-xs text-gray-400">Submitted by {result.submitter?.name || 'Unknown'}</p>
           </div>
           <div className="text-center">
             <div className="text-xl font-bold">
