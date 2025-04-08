@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "env": {
+    "VERCEL_POSTGRES_PRISMA_URL": "postgres://default:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/verceldb?pgbouncer=true&connection_limit=1",
+    "VERCEL_POSTGRES_URL_NON_POOLING": "postgres://default:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/verceldb"
+  }
+}

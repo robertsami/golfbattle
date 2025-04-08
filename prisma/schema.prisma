@@ -1,0 +1,146 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// User model
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  friendId      String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  friends                User[]   @relation("UserFriends")
+  friendsOf              User[]   @relation("UserFriends")
+  matchesAsPlayer1       Match[]  @relation("Player1")
+  matchesAsPlayer2       Match[]  @relation("Player2")
+  competitionsCreated    Competition[] @relation("CompetitionCreator")
+  participatingIn        CompetitionParticipant[]
+  submittedResults       MatchResult[] @relation("ResultSubmitter")
+  attestedBirdies        Birdie[] @relation("BirdieAttester")
+  birdies                Birdie[] @relation("BirdieAchiever")
+}
+
+// Match model
+model Match {
+  id            String   @id @default(cuid())
+  title         String?
+  player1Id     String
+  player2Id     String
+  player1Score  Int      @default(0)
+  player2Score  Int      @default(0)
+  status        String   @default("active") // active, completed
+  startDate     DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  player1       User     @relation("Player1", fields: [player1Id], references: [id])
+  player2       User     @relation("Player2", fields: [player2Id], references: [id])
+  results       MatchResult[]
+}
+
+// Match Result model
+model MatchResult {
+  id            String   @id @default(cuid())
+  matchId       String
+  submitterId   String
+  player1Score  Int
+  player2Score  Int
+  date          DateTime
+  status        String   @default("pending") // pending, accepted, rejected
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  match         Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  submitter     User     @relation("ResultSubmitter", fields: [submitterId], references: [id])
+}
+
+// Competition model
+model Competition {
+  id            String   @id @default(cuid())
+  title         String
+  type          String   // birdie-checklist, bingo
+  creatorId     String
+  startDate     DateTime @default(now())
+  endDate       DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  creator       User     @relation("CompetitionCreator", fields: [creatorId], references: [id])
+  participants  CompetitionParticipant[]
+  holes         CompetitionHole[]
+}
+
+// Competition Participant model
+model CompetitionParticipant {
+  id            String   @id @default(cuid())
+  competitionId String
+  userId        String
+  joinedAt      DateTime @default(now())
+
+  // Relations
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id])
+
+  @@unique([competitionId, userId])
+}
+
+// Competition Hole model (for birdie checklist)
+model CompetitionHole {
+  id            String   @id @default(cuid())
+  competitionId String
+  holeNumber    Int
+  createdAt     DateTime @default(now())
+
+  // Relations
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  birdies       Birdie[]
+
+  @@unique([competitionId, holeNumber])
+}
+
+// Birdie model
+model Birdie {
+  id              String   @id @default(cuid())
+  competitionHoleId String
+  achieverId      String
+  attesterId      String?
+  date            DateTime
+  createdAt       DateTime @default(now())
+
+  // Relations
+  competitionHole CompetitionHole @relation(fields: [competitionHoleId], references: [id], onDelete: Cascade)
+  achiever        User     @relation("BirdieAchiever", fields: [achieverId], references: [id])
+  attester        User?    @relation("BirdieAttester", fields: [attesterId], references: [id])
+
+  @@unique([competitionHoleId, achieverId])
+}
+
+// BingoSquare model for bingo competitions
+model BingoSquare {
+  id            String   @id @default(cuid())
+  competitionId String
+  userId        String
+  squareNumber  Int
+  description   String
+  completed     Boolean  @default(false)
+  completedDate DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([competitionId, userId, squareNumber])
+}
