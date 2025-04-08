@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, use } from "react";
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -21,7 +21,8 @@ import { useSession } from "next-auth/react"
 import { matchAPI } from "@/lib/api/client"
 import { formatDate } from "@/lib/utils"
 
-export default function MatchDetailPage({ params }: { params: PageParams }) {
+export default function MatchDetailPage(props: { params: Promise<PageParams> }) {
+  const params = use(props.params);
   const { data: session } = useSession()
   // Get the match ID from params
   const { id: matchId } = params
@@ -149,17 +150,17 @@ export default function MatchDetailPage({ params }: { params: PageParams }) {
   // Determine if the current user is player1 or player2
   const currentUserId = session?.user?.id
   const isPlayer1 = match.player1Id === currentUserId
-  
+
   // Get the opponent's name
   const opponentName = isPlayer1 ? match.player2?.name : match.player1?.name
-  
+
   // Get the scores (from the perspective of the current user)
   const yourScore = isPlayer1 ? match.player1Score : match.player2Score
   const opponentScore = isPlayer1 ? match.player2Score : match.player1Score
-  
+
   // Format the start date
   const startDate = formatDate(match.startDate)
-  
+
   // Process results
   const results = match.results?.map((result: any) => ({
     id: result.id,
