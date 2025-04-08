@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     // Ensure params is properly awaited
-    const userId = params?.id;
+    const { id: userId } = await params;
     
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -97,7 +97,7 @@ export async function PUT(
 ) {
   try {
     // Ensure params is properly awaited
-    const userId = params?.id;
+    const { id: userId } = await params;
     const body = await request.json();
     const { name, email } = body;
     
@@ -139,7 +139,7 @@ export async function DELETE(
 ) {
   try {
     // Ensure params is properly awaited
-    const userId = params?.id;
+    const { id: userId } = await params;
     
     // Validate the user exists
     const existingUser = await prisma.user.findUnique({

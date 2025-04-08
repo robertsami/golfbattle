@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     // Ensure params is properly awaited
-    const userId = params?.id;
+    const { id: userId } = await params;
     
     // Validate the user exists
     const user = await prisma.user.findUnique({
@@ -49,7 +49,7 @@ export async function POST(
 ) {
   try {
     // Ensure params is properly awaited
-    const userId = params?.id;
+    const { id: userId } = await params;
     const body = await request.json();
     const { friendId } = body;
     

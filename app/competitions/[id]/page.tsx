@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,7 +19,8 @@ import { ArrowLeft, Check } from "lucide-react"
 import { PageParams } from "@/types"
 
 export default function CompetitionDetailPage({ params }: { params: PageParams }) {
-  const competitionId = params.id
+  // Use React.use to unwrap the params Promise
+  const { id: competitionId } = React.use(params)
   const [competition, setCompetition] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

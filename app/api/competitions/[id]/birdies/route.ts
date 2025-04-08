@@ -8,7 +8,7 @@ export async function POST(
 ) {
   try {
     // Ensure params is properly awaited
-    const competitionId = params?.id;
+    const { id: competitionId } = await params;
     const body = await request.json();
     const { holeNumber, achieverId, attesterId, date } = body;
     

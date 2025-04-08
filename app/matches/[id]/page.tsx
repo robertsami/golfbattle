@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -23,7 +23,8 @@ import { formatDate } from "@/lib/utils"
 
 export default function MatchDetailPage({ params }: { params: PageParams }) {
   const { data: session } = useSession()
-  const matchId = params.id
+  // Use React.use to unwrap the params Promise
+  const { id: matchId } = React.use(params)
   const [match, setMatch] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

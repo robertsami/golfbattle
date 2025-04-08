@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     // Ensure params is properly awaited
-    const matchId = params?.id;
+    const { id: matchId } = await params;
     
     const match = await prisma.match.findUnique({
       where: { id: matchId },
@@ -67,7 +67,7 @@ export async function PUT(
 ) {
   try {
     // Ensure params is properly awaited
-    const matchId = params?.id;
+    const { id: matchId } = await params;
     const body = await request.json();
     const { title, status } = body;
     
@@ -123,7 +123,7 @@ export async function DELETE(
 ) {
   try {
     // Ensure params is properly awaited
-    const matchId = params?.id;
+    const { id: matchId } = await params;
     
     // Validate the match exists
     const existingMatch = await prisma.match.findUnique({
