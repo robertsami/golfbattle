@@ -1,67 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { signIn, useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { ClubIcon as GolfIcon } from "lucide-react"
+import { GlobeIcon as GolfBall } from "lucide-react"
 
 export default function LoginPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  
-  // Get error from URL
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const searchParams = new URLSearchParams(window.location.search);
-      const errorParam = searchParams.get('error');
-      if (errorParam) {
-        setError(errorParam);
-      }
-    }
-  }, []);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // Handle error messages
-  useEffect(() => {
-    if (error) {
-      switch (error) {
-        case 'OAuthAccountNotLinked':
-          setErrorMessage('Email already in use with a different provider. Please sign in using the original provider.');
-          break;
-        case 'OAuthSignin':
-          setErrorMessage('Error during OAuth sign in. Please try again.');
-          break;
-        case 'OAuthCallback':
-          setErrorMessage('Error during OAuth callback. Please try again.');
-          break;
-        default:
-          setErrorMessage('An error occurred during sign in. Please try again.');
-      }
-    }
-  }, [error]);
-
-  // Redirect to dashboard if already logged in
-  useEffect(() => {
-    if (status === "authenticated") {
-      router.push("/dashboard");
-    }
-  }, [status, router]);
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    await signIn("google", { callbackUrl: "/dashboard" });
-  };
-
-  if (status === "loading" || (isLoading && status !== "authenticated")) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-800"></div>
-      </div>
-    );
+    setIsLoading(true)
+    await signIn("google", { callbackUrl: "/dashboard" })
   }
 
   return (
@@ -70,16 +20,11 @@ export default function LoginPage() {
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <div className="bg-green-800 p-3 rounded-full">
-              <GolfIcon className="h-8 w-8 text-white" />
+              <GolfBall className="h-8 w-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold text-green-800">Welcome to GolfDegens</CardTitle>
+          <CardTitle className="text-2xl font-bold text-green-800">Welcome to GolfRival</CardTitle>
           <CardDescription>Sign in to track your golf competitions</CardDescription>
-          {errorMessage && (
-            <div className="mt-4 p-3 bg-red-100 text-red-800 rounded-md text-sm">
-              {errorMessage}
-            </div>
-          )}
         </CardHeader>
         <CardContent>
           <Button

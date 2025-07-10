@@ -1,108 +1,112 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Copy, Check, User, Loader2, AlertCircle } from "lucide-react"
-import { Friend } from "@/types"
+import { ArrowLeft, Copy, Check, User } from "lucide-react"
 import { useSession } from "next-auth/react"
-import { userAPI } from "@/lib/api/client"
-import { toast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 
 export default function AddFriendPage() {
   const { data: session } = useSession()
-  const router = useRouter()
-  const [friendId, setFriendId] = useState<string>("")
-  const [copied, setCopied] = useState<boolean>(false)
-  const [searchResult, setSearchResult] = useState<Friend | null>(null)
-  const [isSearching, setIsSearching] = useState<boolean>(false)
-  const [isAdding, setIsAdding] = useState<boolean>(false)
-  const [error, setError] = useState<string | null>(null)
-  const [myFriendId, setMyFriendId] = useState<string>("")
-
-  // Fetch current user's friend ID
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      if (session?.user?.id) {
-        try {
-          const user = await userAPI.getUser(session.user.id)
-          if (user && user.friendId) {
-            setMyFriendId(user.friendId)
-          }
-        } catch (err) {
-          console.error("Error fetching current user:", err)
-          setMyFriendId("Not available")
-        }
-      }
-    }
-    
-    fetchCurrentUser()
-  }, [session?.user?.id])
+  const { toast } = useToast()
+  const [friendId, setFriendId] = useState("")
+  const [copied, setCopied] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [searchResult, setSearchResult] = useState(null)
 
   const handleSearch = async () => {
     if (!friendId.trim()) return
-    
-    setIsSearching(true)
-    setError(null)
-    setSearchResult(null)
-    
+
+    setIsLoading(true)
     try {
-      // Search for user by friendId
-      const users = await userAPI.searchUsers({ friendId: friendId.trim() })
-      
-      if (users && users.length > 0) {
-        // Found a user with this friendId
-        setSearchResult(users[0])
-      } else {
-        setError("No user found with this Friend ID")
+      const response = await fetch(`/api/search/users?friendId=${friendId}`)
+
+      if (!response.ok) {
+        throw new Error("Failed to search for user")
       }
-    } catch (err: any) {
-      console.error("Error searching for user:", err)
-      setError(err.message || "Failed to search for user")
+
+      const data = await response.json()
+
+      if (data.length > 0) {
+        setSearchResult(data[0])
+      } else {
+        setSearchResult(null)
+        toast({
+          title: "User not found",
+          description: "No user found with that Friend ID",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: "Error",
+        description: "Failed to search for user",
+        variant: "destructive",
+      })
     } finally {
-      setIsSearching(false)
+      setIsLoading(false)
     }
   }
 
   const handleAddFriend = async () => {
-    if (!searchResult || !session?.user?.id) return
-    
-    setIsAdding(true)
-    
+    if (!searchResult) return
+
+    setIsLoading(true)
     try {
-      // Add friend using the API - pass the friendId, not the user's database ID
-      await userAPI.addFriend(session.user.id, searchResult.friendId)
-      
-      // Show success message
-      toast({
-        title: "Friend added successfully!",
-        description: `${searchResult.name} has been added to your friends list.`,
+      const response = await fetch("/api/friends", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          friendId: searchResult.friendId,
+        }),
       })
-      
-      // Redirect to the friends page
-      router.push("/friends")
-    } catch (err: any) {
-      console.error("Error adding friend:", err)
-      
-      // Show error message
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Failed to add friend")
+      }
+
       toast({
-        title: "Failed to add friend",
-        description: err.message || "An error occurred while adding friend",
+        title: "Friend request sent",
+        description: `Friend request sent to ${searchResult.name}`,
+      })
+
+      // Update the search result to show pending status
+      setSearchResult({
+        ...searchResult,
+        friendStatus: "PENDING",
+        sentRequest: true,
+      })
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add friend",
         variant: "destructive",
       })
-      
-      setIsAdding(false)
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const copyFriendId = () => {
-    navigator.clipboard.writeText(myFriendId)
+    if (!session?.user?.friendId) return
+
+    navigator.clipboard.writeText(session.user.friendId)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+
+    toast({
+      title: "Copied to clipboard",
+      description: "Your Friend ID has been copied to clipboard",
+    })
   }
 
   return (
@@ -123,63 +127,46 @@ export default function AddFriendPage() {
             <CardContent>
               <div className="space-y-4">
                 <div className="flex gap-2">
-                  <Input 
-                    placeholder="Enter friend ID" 
-                    value={friendId} 
-                    onChange={(e) => setFriendId(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    disabled={isSearching}
-                  />
-                  <Button 
-                    onClick={handleSearch} 
+                  <Input placeholder="Enter friend ID" value={friendId} onChange={(e) => setFriendId(e.target.value)} />
+                  <Button
+                    onClick={handleSearch}
                     className="bg-green-800 hover:bg-green-700"
-                    disabled={isSearching || !friendId.trim()}
+                    disabled={isLoading || !friendId.trim()}
                   >
-                    {isSearching ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      'Search'
-                    )}
+                    {isLoading ? "Searching..." : "Search"}
                   </Button>
                 </div>
-
-                {error && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <span>{error}</span>
-                  </div>
-                )}
 
                 {searchResult && (
                   <div className="mt-4">
                     <div className="p-4 border rounded-md bg-green-50">
                       <div className="flex items-center gap-3">
                         <div className="bg-green-100 p-2 rounded-full">
-                          {searchResult.image ? (
-                            <img src={searchResult.image} alt={searchResult.name} className="h-5 w-5 rounded-full" />
-                          ) : (
-                            <User className="h-5 w-5 text-green-800" />
-                          )}
+                          <User className="h-5 w-5 text-green-800" />
                         </div>
                         <div>
                           <h3 className="font-medium">{searchResult.name}</h3>
                           <p className="text-sm text-gray-500">Friend ID: {searchResult.friendId}</p>
                         </div>
                       </div>
-                      <Button 
-                        className="w-full mt-4 bg-green-800 hover:bg-green-700" 
-                        onClick={handleAddFriend}
-                        disabled={isAdding}
-                      >
-                        {isAdding ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Adding...
-                          </>
-                        ) : (
-                          'Add Friend'
-                        )}
-                      </Button>
+
+                      {searchResult.friendStatus === "ACCEPTED" ? (
+                        <div className="mt-4 text-center text-green-700 font-medium">Already friends</div>
+                      ) : searchResult.friendStatus === "PENDING" ? (
+                        <div className="mt-4 text-center text-amber-700 font-medium">
+                          {searchResult.sentRequest
+                            ? "Friend request pending"
+                            : "Friend request received - check your notifications"}
+                        </div>
+                      ) : (
+                        <Button
+                          className="w-full mt-4 bg-green-800 hover:bg-green-700"
+                          onClick={handleAddFriend}
+                          disabled={isLoading}
+                        >
+                          {isLoading ? "Sending request..." : "Add Friend"}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -199,22 +186,13 @@ export default function AddFriendPage() {
                 <div>
                   <Label>Your Friend ID</Label>
                   <div className="flex gap-2 mt-1">
-                    {!session ? (
-                      <Input value="Please sign in to see your Friend ID" readOnly disabled />
-                    ) : !myFriendId ? (
-                      <div className="flex-1 flex items-center justify-center p-2 bg-gray-100 rounded-md">
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        <span className="text-sm text-gray-500">Loading...</span>
-                      </div>
-                    ) : (
-                      <Input value={myFriendId} readOnly />
-                    )}
+                    <Input value={session?.user?.friendId || ""} readOnly />
                     <Button
                       variant="outline"
                       size="icon"
                       onClick={copyFriendId}
                       className="text-green-800 border-green-800 hover:bg-green-50"
-                      disabled={!myFriendId || !session}
+                      disabled={!session?.user?.friendId}
                     >
                       {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                     </Button>

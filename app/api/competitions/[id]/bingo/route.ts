@@ -1,218 +1,93 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getAuthSession } from "@/auth"
+import prisma from "@/lib/db"
+import { NextResponse } from "next/server"
 
-// GET /api/competitions/[id]/bingo - Get bingo squares for a competition
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
-    // Ensure params is properly awaited
-    const { id: competitionId } = await params;
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-    
-    // Validate the competition exists and is a bingo competition
+    const session = await getAuthSession()
+
+    if (!session?.user) {
+      return new NextResponse("Unauthorized", { status: 401 })
+    }
+
+    const { id } = params
+    const { squareId, date, attestedById } = await req.json()
+
+    if (!squareId || !date) {
+      return new NextResponse("Missing required fields", { status: 400 })
+    }
+
+    // Get the competition
     const competition = await prisma.competition.findUnique({
-      where: { id: competitionId },
-    });
-    
-    if (!competition) {
-      return NextResponse.json(
-        { error: 'Competition not found' },
-        { status: 404 }
-      );
-    }
-    
-    if (competition.type !== 'bingo') {
-      return NextResponse.json(
-        { error: 'This competition is not a bingo competition' },
-        { status: 400 }
-      );
-    }
-    
-    // Build the query
-    let whereClause: any = { competitionId };
-    
-    // Filter by user if provided
-    if (userId) {
-      whereClause.userId = userId;
-    }
-    
-    // Get the bingo squares
-    const bingoSquares = await prisma.bingoSquare.findMany({
-      where: whereClause,
-      orderBy: {
-        squareNumber: 'asc',
-      },
-    });
-    
-    // If filtering by user, return a simple array
-    if (userId) {
-      return NextResponse.json(bingoSquares);
-    }
-    
-    // Otherwise, group by user
-    const squaresByUser: Record<string, any[]> = {};
-    
-    bingoSquares.forEach(square => {
-      if (!squaresByUser[square.userId]) {
-        squaresByUser[square.userId] = [];
-      }
-      squaresByUser[square.userId].push(square);
-    });
-    
-    // Get user details for each user
-    const userIds = Object.keys(squaresByUser);
-    const users = await prisma.user.findMany({
       where: {
-        id: {
-          in: userIds,
+        id,
+      },
+      include: {
+        participants: true,
+        bingoSquares: true,
+      },
+    })
+
+    if (!competition) {
+      return new NextResponse("Competition not found", { status: 404 })
+    }
+
+    // Check if the competition is a bingo board
+    if (competition.type !== "BINGO") {
+      return new NextResponse("This is not a bingo competition", { status: 400 })
+    }
+
+    // Check if the current user is a participant
+    const isParticipant = competition.participants.some((p) => p.userId === session.user.id)
+
+    if (!isParticipant) {
+      return new NextResponse("Unauthorized", { status: 401 })
+    }
+
+    // Check if the square exists and belongs to this competition
+    const square = competition.bingoSquares.find((s) => s.id === squareId)
+
+    if (!square) {
+      return new NextResponse("Square not found", { status: 404 })
+    }
+
+    // Check if the user already has an entry for this square
+    const existingEntry = await prisma.bingoEntry.findUnique({
+      where: {
+        squareId_userId: {
+          squareId,
+          userId: session.user.id,
         },
       },
-      select: {
-        id: true,
-        name: true,
-      },
-    });
-    
-    // Create a map of user IDs to user details
-    const userMap: Record<string, any> = {};
-    users.forEach(user => {
-      userMap[user.id] = user;
-    });
-    
-    // Format the response
-    const result = Object.entries(squaresByUser).map(([userId, squares]) => ({
-      user: userMap[userId],
-      squares,
-      completed: squares.filter(square => square.completed).length,
-      total: squares.length,
-      percentage: Math.round((squares.filter(square => square.completed).length / squares.length) * 100),
-    }));
-    
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error('Error fetching bingo squares:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch bingo squares' },
-      { status: 500 }
-    );
-  }
-}
+    })
 
-// POST /api/competitions/[id]/bingo - Create a bingo square
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // Ensure params is properly awaited
-    const { id: competitionId } = await params;
-    const body = await request.json();
-    const { text, position, userId } = body;
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      );
+    if (existingEntry) {
+      return new NextResponse("You already have an entry for this square", { status: 400 })
     }
-    
-    if (!text || position === undefined) {
-      return NextResponse.json(
-        { error: 'Text and position are required' },
-        { status: 400 }
-      );
-    }
-    
-    // Validate the competition exists and is a bingo competition
-    const competition = await prisma.competition.findUnique({
-      where: { id: competitionId },
-    });
-    
-    if (!competition) {
-      return NextResponse.json(
-        { error: 'Competition not found' },
-        { status: 404 }
-      );
-    }
-    
-    if (competition.type !== 'bingo') {
-      return NextResponse.json(
-        { error: 'This competition is not a bingo competition' },
-        { status: 400 }
-      );
-    }
-    
-    // Create the bingo square
-    const bingoSquare = await prisma.bingoSquare.create({
-      data: {
-        competitionId,
-        description: text,
-        squareNumber: position,
-        userId, // Required field in the schema
-      },
-    });
-    
-    return NextResponse.json(bingoSquare);
-  } catch (error) {
-    console.error('Error creating bingo square:', error);
-    return NextResponse.json(
-      { error: 'Failed to create bingo square' },
-      { status: 500 }
-    );
-  }
-}
 
-// PUT /api/competitions/[id]/bingo - Update a bingo square
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // Ensure params is properly awaited
-    const { id: competitionId } = await params;
-    const body = await request.json();
-    const { squareId, completed, completedDate } = body;
-    
-    if (!squareId) {
-      return NextResponse.json(
-        { error: 'Square ID is required' },
-        { status: 400 }
-      );
+    // If attestedById is provided, check if they are a participant
+    if (attestedById) {
+      const isAttesterParticipant = competition.participants.some((p) => p.userId === attestedById)
+
+      if (!isAttesterParticipant) {
+        return new NextResponse("Attester is not a participant", { status: 400 })
+      }
     }
-    
-    // Validate the square exists and belongs to the competition
-    const square = await prisma.bingoSquare.findFirst({
-      where: {
-        id: squareId,
-        competitionId,
-      },
-    });
-    
-    if (!square) {
-      return NextResponse.json(
-        { error: 'Bingo square not found in this competition' },
-        { status: 404 }
-      );
-    }
-    
-    // Update the square
-    const updatedSquare = await prisma.bingoSquare.update({
-      where: { id: squareId },
+
+    // Create a new bingo entry
+    const entry = await prisma.bingoEntry.create({
       data: {
-        completed: completed !== undefined ? completed : undefined,
-        completedDate: completedDate ? new Date(completedDate) : completed ? new Date() : undefined,
+        squareId,
+        competitionId: id,
+        userId: session.user.id,
+        date: new Date(date),
+        attestedById: attestedById || null,
       },
-    });
-    
-    return NextResponse.json(updatedSquare);
+    })
+
+    return NextResponse.json(entry)
   } catch (error) {
-    console.error('Error updating bingo square:', error);
-    return NextResponse.json(
-      { error: 'Failed to update bingo square' },
-      { status: 500 }
-    );
+    console.error("[COMPETITION_BINGO_POST]", error)
+    return new NextResponse("Internal Error", { status: 500 })
   }
 }

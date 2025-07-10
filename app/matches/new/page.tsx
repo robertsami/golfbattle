@@ -1,221 +1,242 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
+import { ArrowLeft, Search, UserPlus } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Search, UserPlus, Loader2 } from "lucide-react"
-import { Friend } from "@/types"
-import { useSession } from "next-auth/react"
-import { userAPI, matchAPI } from "@/lib/api/client"
+import { useToast } from "@/hooks/use-toast"
+
+interface Friend {
+  id: string
+  name: string
+  friendId: string
+}
 
 export default function NewMatchPage() {
-  const { data: session } = useSession()
   const router = useRouter()
-  const [searchTerm, setSearchTerm] = useState<string>("")
-  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null)
-  const [friends, setFriends] = useState<Friend[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-  const [creating, setCreating] = useState<boolean>(false)
+  const searchParams = useSearchParams()
+  const { toast } = useToast()
 
-  // Fetch friends
+  const [searchTerm, setSearchTerm] = useState("")
+  const [friends, setFriends] = useState<Friend[]>([])
+  const [filteredFriends, setFilteredFriends] = useState<Friend[]>([])
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null)
+  const [matchName, setMatchName] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // If the user was deep-linked with ?friendId=<id>, pre-select that friend
+  const friendIdFromUrl = searchParams.get("friendId")
+
+  /* ------------------------------------------------------------------
+   * Load friends list
+   * ---------------------------------------------------------------- */
   useEffect(() => {
     const fetchFriends = async () => {
       try {
-        setLoading(true)
-        const userId = session?.user?.id
-        
-        if (!userId) {
-          // If not logged in, we'll show empty state
-          setFriends([])
-          return
-        }
-        
-        const data = await userAPI.getUserFriends(userId)
+        const res = await fetch("/api/friends")
+        if (!res.ok) throw new Error("Failed to fetch friends")
+        const data: Friend[] = await res.json()
+
         setFriends(data)
-      } catch (err: any) {
-        console.error("Error fetching friends:", err)
-        setError(err.message || "Failed to load friends")
+        setFilteredFriends(data)
+
+        if (friendIdFromUrl) {
+          const preselected = data.find((f) => f.id === friendIdFromUrl)
+          if (preselected) setSelectedFriend(preselected)
+        }
+      } catch (err) {
+        console.error(err)
+        toast({
+          title: "Error",
+          description: "Failed to load friends list",
+          variant: "destructive",
+        })
       } finally {
-        setLoading(false)
+        setIsLoading(false)
       }
     }
-    
+
     fetchFriends()
-  }, [session?.user?.id])
+  }, [toast, friendIdFromUrl])
 
-  const filteredFriends = searchTerm
-    ? friends.filter(
-        (friend) =>
-          friend.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          friend.friendId.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
-    : friends
+  /* ------------------------------------------------------------------
+   * Client-side search filter
+   * ---------------------------------------------------------------- */
+  useEffect(() => {
+    if (!searchTerm) {
+      setFilteredFriends(friends)
+      return
+    }
+    const term = searchTerm.toLowerCase()
+    setFilteredFriends(
+      friends.filter((f) => f.name.toLowerCase().includes(term) || f.friendId.toLowerCase().includes(term)),
+    )
+  }, [searchTerm, friends])
 
+  /* ------------------------------------------------------------------
+   * Submit new match
+   * ---------------------------------------------------------------- */
   const handleCreateMatch = async () => {
-    if (!selectedFriend || !session?.user?.id) return
-    
-    try {
-      setCreating(true)
-      
-      const newMatch = await matchAPI.createMatch({
-        player1Id: session.user.id,
-        player2Id: selectedFriend.id,
-        title: `Match: ${session.user.name} vs ${selectedFriend.name}`,
-        startDate: new Date().toISOString(),
-        status: 'active',
+    if (!selectedFriend) {
+      toast({
+        title: "No opponent selected",
+        description: "Please choose a friend to create a match with.",
+        variant: "destructive",
       })
-      
-      // Redirect to the new match page
-      router.push(`/matches/${newMatch.id}`)
-    } catch (err: any) {
-      console.error("Error creating match:", err)
-      alert("Failed to create match: " + (err.message || "Unknown error"))
-      setCreating(false)
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const res = await fetch("/api/matches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          player2Id: selectedFriend.id,
+          name: matchName.trim() || undefined,
+        }),
+      })
+
+      if (!res.ok) throw new Error("Failed to create match")
+      const match = await res.json()
+
+      toast({
+        title: "Match created",
+        description: `Match with ${selectedFriend.name} created successfully.`,
+      })
+
+      router.push(`/matches/${match.id}`)
+    } catch (err) {
+      console.error(err)
+      toast({
+        title: "Error",
+        description: "Unable to create match",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="container mx-auto p-4 md:p-8">
-        <div className="flex items-center mb-8">
-          <Link href="/matches">
-            <Button variant="ghost" className="mr-4">
-              <ArrowLeft className="h-4 w-4 mr-2" /> Back
-            </Button>
-          </Link>
-          <h1 className="text-3xl font-bold text-green-800">New Match</h1>
-        </div>
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-green-800" />
-        </div>
-      </div>
-    )
-  }
+  /* ------------------------------------------------------------------ */
 
   return (
     <div className="container mx-auto p-4 md:p-8">
-      <div className="flex items-center mb-8">
-        <Link href="/matches">
-          <Button variant="ghost" className="mr-4">
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back
-          </Button>
-        </Link>
-        <h1 className="text-3xl font-bold text-green-800">New Match</h1>
-      </div>
+      <Link href="/matches" className="mb-4 inline-flex items-center text-green-800 hover:text-green-700">
+        <ArrowLeft className="mr-1 h-4 w-4" /> Back to Matches
+      </Link>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Select Opponent</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="relative mb-6">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+      <h1 className="mb-8 text-3xl font-bold text-green-800">Create New Match</h1>
+
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        {/* -------------------------------------------------------------
+         * Friend selector
+         * ----------------------------------------------------------- */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Opponent</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
                 <Input
+                  className="pl-8"
                   placeholder="Search friends..."
-                  className="pl-10"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+            </div>
 
-              {error ? (
-                <div className="text-center text-red-500 p-4">
-                  Error loading friends: {error}
-                </div>
-              ) : filteredFriends.length === 0 ? (
-                <div className="text-center text-gray-500 p-4">
-                  {friends.length === 0
-                    ? "You don't have any friends yet. Add some to start a match!"
-                    : "No friends match your search."}
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {filteredFriends.map((friend) => (
-                    <div
-                      key={friend.id}
-                      className={`p-3 rounded-md cursor-pointer transition-colors ${
-                        selectedFriend?.id === friend.id
-                          ? "bg-green-100 border border-green-300"
-                          : "hover:bg-gray-100 border border-transparent"
-                      }`}
-                      onClick={() => setSelectedFriend(friend)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-green-100 p-2 rounded-full">
-                            <UserPlus className="h-5 w-5 text-green-800" />
-                          </div>
-                          <div>
-                            <h3 className="font-medium">{friend.name}</h3>
-                            <p className="text-sm text-gray-500">@{friend.friendId}</p>
-                          </div>
-                        </div>
-                        {selectedFriend?.id === friend.id && (
-                          <div className="h-3 w-3 bg-green-500 rounded-full"></div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Match Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {selectedFriend ? (
-                <div>
-                  <div className="mb-6">
-                    <Label htmlFor="opponent">Opponent</Label>
-                    <div className="p-3 bg-gray-50 rounded-md mt-2">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-green-100 p-2 rounded-full">
-                          <UserPlus className="h-5 w-5 text-green-800" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium">{selectedFriend.name}</h3>
-                          <p className="text-sm text-gray-500">@{selectedFriend.friendId}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button 
-                    className="w-full bg-green-800 hover:bg-green-700"
-                    onClick={handleCreateMatch}
-                    disabled={creating}
+            <div className="max-h-80 space-y-2 overflow-y-auto">
+              {isLoading ? (
+                <p className="py-4 text-center text-gray-500">Loading friends...</p>
+              ) : filteredFriends.length ? (
+                filteredFriends.map((friend) => (
+                  <button
+                    key={friend.id}
+                    type="button"
+                    onClick={() => setSelectedFriend(friend)}
+                    className={`w-full rounded-md p-3 text-left transition-colors ${
+                      selectedFriend?.id === friend.id
+                        ? "border border-green-300 bg-green-100"
+                        : "border border-transparent hover:bg-gray-100"
+                    }`}
                   >
-                    {creating ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      "Create Match"
-                    )}
-                  </Button>
-                </div>
+                    <span className="font-medium">{friend.name}</span>
+                    <span className="block text-sm text-gray-500">Friend ID: {friend.friendId}</span>
+                  </button>
+                ))
               ) : (
-                <div className="text-center text-gray-500 p-4">
-                  Select an opponent to continue
-                </div>
+                <p className="py-4 text-center text-gray-500">
+                  {searchTerm ? `No friends match “${searchTerm}”` : "No friends found"}
+                </p>
               )}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+
+            <div className="mt-4 text-center">
+              <Link href="/friends/add">
+                <Button variant="outline" className="border-green-800 text-green-800 hover:bg-green-50 bg-transparent">
+                  <UserPlus className="mr-2 h-4 w-4" /> Add New Friend
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* -------------------------------------------------------------
+         * Match details + submit
+         * ----------------------------------------------------------- */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Match Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {selectedFriend ? (
+              <>
+                <div className="mb-6">
+                  <Label className="text-base">Selected Opponent</Label>
+                  <div className="mt-2 rounded-md border border-green-200 bg-green-50 p-3">
+                    <p className="font-medium">{selectedFriend.name}</p>
+                    <p className="text-sm text-gray-500">Friend ID: {selectedFriend.friendId}</p>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <Label htmlFor="matchName" className="text-base">
+                    Match Name (optional)
+                  </Label>
+                  <Input
+                    id="matchName"
+                    className="mt-2"
+                    placeholder="Summer 2025 Match"
+                    value={matchName}
+                    onChange={(e) => setMatchName(e.target.value)}
+                  />
+                  <p className="mt-1 text-sm text-gray-500">Leave blank to use “Match vs. {selectedFriend.name}”</p>
+                </div>
+
+                <Button
+                  disabled={isSubmitting}
+                  onClick={handleCreateMatch}
+                  className="w-full bg-green-800 hover:bg-green-700"
+                >
+                  {isSubmitting ? "Creating…" : "Create Match"}
+                </Button>
+              </>
+            ) : (
+              <p className="py-8 text-center text-gray-500">Select an opponent from the list to continue</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

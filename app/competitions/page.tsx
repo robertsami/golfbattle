@@ -1,42 +1,91 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, CheckSquare, Grid3X3, ChevronRight, Loader2 } from "lucide-react"
-import { Competition, CompetitionCardProps } from "@/types"
-import { competitionAPI } from "@/lib/api/client"
+import { Plus, CheckSquare, Grid3X3, ChevronRight } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 export default function CompetitionsPage() {
-  const [birdieCompetitions, setBirdieCompetitions] = useState<Competition[]>([]);
-  const [bingoCompetitions, setBingoCompetitions] = useState<Competition[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast()
+  const [competitions, setCompetitions] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState("birdie")
 
   useEffect(() => {
     const fetchCompetitions = async () => {
       try {
-        setLoading(true);
-        const data = await competitionAPI.getCompetitions();
-        
-        // Split competitions by type
-        const birdies = data.filter(comp => comp.type === 'birdie-checklist');
-        const bingos = data.filter(comp => comp.type === 'bingo');
-        
-        setBirdieCompetitions(birdies);
-        setBingoCompetitions(bingos);
-      } catch (err: any) {
-        console.error("Error fetching competitions:", err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+        const type = activeTab === "birdie" ? "BIRDIE_CHECKLIST" : "BINGO"
+        const response = await fetch(`/api/competitions?type=${type}`)
 
-    fetchCompetitions();
-  }, []);
+        if (!response.ok) {
+          throw new Error("Failed to fetch competitions")
+        }
+
+        const data = await response.json()
+        setCompetitions(data)
+      } catch (error) {
+        console.error(error)
+        toast({
+          title: "Error",
+          description: "Failed to load competitions",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchCompetitions()
+  }, [toast, activeTab])
+
+  // Format competitions for display
+  const formattedCompetitions = competitions.map((competition) => {
+    const participants = competition.participants.length
+    let progress = 0
+    let total = 0
+    let lastActivity = "No activity yet"
+
+    if (competition.type === "BIRDIE_CHECKLIST") {
+      // Count user's birdies in this competition
+      const userEntries = competition.birdieEntries.filter(
+        (entry) => entry.userId === competition.participants[0].userId,
+      )
+      progress = userEntries.length
+      total = 18 // 18 holes
+
+      // Get the most recent activity
+      if (competition.birdieEntries.length > 0) {
+        const latestEntry = [...competition.birdieEntries].sort((a, b) => new Date(b.date) - new Date(a.date))[0]
+        lastActivity = formatTimeAgo(latestEntry.date)
+      }
+    } else if (competition.type === "BINGO") {
+      // Count user's marked squares in this competition
+      const userEntries = competition.bingoEntries.filter(
+        (entry) => entry.userId === competition.participants[0].userId,
+      )
+      progress = userEntries.length
+      total = competition.boardSize ? competition.boardSize * competition.boardSize : 25 // Default to 5x5
+
+      // Get the most recent activity
+      if (competition.bingoEntries.length > 0) {
+        const latestEntry = [...competition.bingoEntries].sort((a, b) => new Date(b.date) - new Date(a.date))[0]
+        lastActivity = formatTimeAgo(latestEntry.date)
+      }
+    }
+
+    return {
+      id: competition.id,
+      title: competition.title,
+      type: competition.type === "BIRDIE_CHECKLIST" ? "birdie-checklist" : "bingo",
+      participants,
+      progress,
+      total,
+      lastActivity,
+    }
+  })
 
   return (
     <div className="container mx-auto p-4 md:p-8">
@@ -49,89 +98,57 @@ export default function CompetitionsPage() {
         </Link>
       </div>
 
-      <Tabs defaultValue="birdie" className="w-full">
+      <Tabs defaultValue="birdie" onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="birdie">Birdie Checklist</TabsTrigger>
           <TabsTrigger value="bingo">Bingo Board</TabsTrigger>
         </TabsList>
 
         <TabsContent value="birdie">
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-green-800" />
-            </div>
-          ) : error ? (
-            <Card>
-              <CardContent className="p-6 text-center text-red-500">
-                Error loading competitions: {error}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {birdieCompetitions.length > 0 ? (
-                birdieCompetitions.map((competition) => (
-                  <CompetitionCard 
-                    key={competition.id} 
-                    competitionId={competition.id}
-                    title={competition.title}
-                    type="birdie-checklist"
-                    participantCount={competition.participants?.length || 0}
-                    progress={competition.holes?.filter((h: any) => h.birdies?.length > 0).length || 0}
-                    total={competition.holes?.length || 18}
-                  />
-                ))
-              ) : (
-                <Card>
-                  <CardContent className="p-6 text-center text-gray-500">
-                    No birdie checklist competitions yet. Create one to get started!
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
+          <div className="space-y-4">
+            {isLoading ? (
+              <Card>
+                <CardContent className="p-6 text-center text-gray-500">Loading competitions...</CardContent>
+              </Card>
+            ) : formattedCompetitions.length > 0 ? (
+              formattedCompetitions.map((competition) => (
+                <CompetitionCard key={competition.id} competition={competition} type="birdie-checklist" />
+              ))
+            ) : (
+              <Card>
+                <CardContent className="p-6 text-center text-gray-500">
+                  No birdie checklist competitions yet. Create one to get started!
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="bingo">
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-green-800" />
-            </div>
-          ) : error ? (
-            <Card>
-              <CardContent className="p-6 text-center text-red-500">
-                Error loading competitions: {error}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {bingoCompetitions.length > 0 ? (
-                bingoCompetitions.map((competition) => (
-                  <CompetitionCard 
-                    key={competition.id} 
-                    competitionId={competition.id}
-                    title={competition.title}
-                    type="bingo"
-                    participantCount={competition.participants?.length || 0}
-                    progress={0} // We would need to calculate this based on completed bingo squares
-                    total={25} // 5x5 bingo board
-                  />
-                ))
-              ) : (
-                <Card>
-                  <CardContent className="p-6 text-center text-gray-500">
-                    No bingo board competitions yet. Create one to get started!
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
+          <div className="space-y-4">
+            {isLoading ? (
+              <Card>
+                <CardContent className="p-6 text-center text-gray-500">Loading competitions...</CardContent>
+              </Card>
+            ) : formattedCompetitions.length > 0 ? (
+              formattedCompetitions.map((competition) => (
+                <CompetitionCard key={competition.id} competition={competition} type="bingo" />
+              ))
+            ) : (
+              <Card>
+                <CardContent className="p-6 text-center text-gray-500">
+                  No bingo board competitions yet. Create one to get started!
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </div>
   )
 }
 
-function CompetitionCard({ competitionId, title, type, participantCount, progress, total }: CompetitionCardProps) {
+function CompetitionCard({ competition, type }) {
   const icon =
     type === "birdie-checklist" ? (
       <CheckSquare className="h-5 w-5 text-green-800" />
@@ -139,27 +156,24 @@ function CompetitionCard({ competitionId, title, type, participantCount, progres
       <Grid3X3 className="h-5 w-5 text-green-800" />
     )
 
-  // Progress and total are now passed as props
-  const progressPercentage = total > 0 ? (progress / total) * 100 : 0;
-  // participantCount is now passed as a prop
-  const lastActivity = new Date().toLocaleDateString();
+  const progressPercentage = (competition.progress / competition.total) * 100
 
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-0">
-        <Link href={`/competitions/${competitionId}`} className="block p-4">
+        <Link href={`/competitions/${competition.id}`} className="block p-4">
           <div className="flex justify-between items-center">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 {icon}
-                <h3 className="font-medium text-gray-800">{title}</h3>
+                <h3 className="font-medium text-gray-800">{competition.title}</h3>
               </div>
               <div className="flex justify-between items-center mb-2">
                 <p className="text-sm text-gray-500">
-                  {participantCount} participants • Last activity: {lastActivity}
+                  {competition.participants} participants • Last activity: {competition.lastActivity}
                 </p>
                 <p className="text-sm font-medium">
-                  {progress}/{total}
+                  {competition.progress}/{competition.total}
                 </p>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
@@ -176,26 +190,21 @@ function CompetitionCard({ competitionId, title, type, participantCount, progres
   )
 }
 
-// Helper function to format dates
-function formatDate(dateString?: string): string {
-  if (!dateString) return 'N/A';
-  
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffTime = Math.abs(now.getTime() - date.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 0) {
-    return 'Today';
-  } else if (diffDays === 1) {
-    return 'Yesterday';
-  } else if (diffDays < 7) {
-    return `${diffDays} days ago`;
-  } else if (diffDays < 30) {
-    const weeks = Math.floor(diffDays / 7);
-    return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
-  } else {
-    const months = Math.floor(diffDays / 30);
-    return `${months} ${months === 1 ? 'month' : 'months'} ago`;
-  }
+// Helper function to format dates as "X time ago"
+function formatTimeAgo(date) {
+  const now = new Date()
+  const diffInMs = now.getTime() - new Date(date).getTime()
+  const diffInSecs = Math.floor(diffInMs / 1000)
+  const diffInMins = Math.floor(diffInSecs / 60)
+  const diffInHours = Math.floor(diffInMins / 60)
+  const diffInDays = Math.floor(diffInHours / 24)
+  const diffInWeeks = Math.floor(diffInDays / 7)
+  const diffInMonths = Math.floor(diffInDays / 30)
+
+  if (diffInSecs < 60) return "just now"
+  if (diffInMins < 60) return `${diffInMins} ${diffInMins === 1 ? "minute" : "minutes"} ago`
+  if (diffInHours < 24) return `${diffInHours} ${diffInHours === 1 ? "hour" : "hours"} ago`
+  if (diffInDays < 7) return `${diffInDays} ${diffInDays === 1 ? "day" : "days"} ago`
+  if (diffInWeeks < 4) return `${diffInWeeks} ${diffInWeeks === 1 ? "week" : "weeks"} ago`
+  return `${diffInMonths} ${diffInMonths === 1 ? "month" : "months"} ago`
 }

@@ -6,24 +6,58 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-// NextAuth Models
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  friendId      String    @unique @default(cuid())
+  accounts      Account[]
+  sessions      Session[]
+
+  // Friend relationships
+  friendsRequested    Friend[]  @relation("UserFriends")
+  friendRequestsReceived Friend[] @relation("FriendUser")
+
+  // Matches
+  matchesAsPlayer1    Match[]   @relation("Player1")
+  matchesAsPlayer2    Match[]   @relation("Player2")
+  matchResultsSubmitted MatchResult[] @relation("ResultSubmitter")
+
+  // Competitions
+  competitionsCreated Competition[] @relation("CompetitionCreator")
+  competitionParticipants CompetitionParticipant[]
+
+  // Birdie entries
+  birdieEntries       BirdieEntry[]
+  birdieAttestations  BirdieEntry[] @relation("BirdieAttester")
+
+  // Bingo entries
+  bingoEntries        BingoEntry[]
+  bingoAttestations   BingoEntry[]  @relation("BingoAttester")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.Text
-  session_state      String?
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -46,142 +80,136 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// User model
-model User {
-  id            String   @id @default(cuid())
-  name          String?
-  email         String?  @unique
-  emailVerified DateTime?
-  image         String?
-  friendId      String?  @unique
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+model Friend {
+  id        String   @id @default(cuid())
+  userId    String
+  friendId  String
+  status    FriendStatus @default(PENDING)
+  user      User     @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend    User     @relation("FriendUser", fields: [friendId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // NextAuth relations
-  accounts      Account[]
-  sessions      Session[]
-
-  // App relations
-  friends                User[]   @relation("UserFriends")
-  friendsOf              User[]   @relation("UserFriends")
-  matchesAsPlayer1       Match[]  @relation("Player1")
-  matchesAsPlayer2       Match[]  @relation("Player2")
-  competitionsCreated    Competition[] @relation("CompetitionCreator")
-  participatingIn        CompetitionParticipant[]
-  submittedResults       MatchResult[] @relation("ResultSubmitter")
-  attestedBirdies        Birdie[] @relation("BirdieAttester")
-  birdies                Birdie[] @relation("BirdieAchiever")
+  @@unique([userId, friendId])
 }
 
-// Match model
+enum FriendStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 model Match {
-  id            String   @id @default(cuid())
-  title         String?
-  player1Id     String
-  player2Id     String
-  player1Score  Int      @default(0)
-  player2Score  Int      @default(0)
-  status        String   @default("active") // active, completed
-  startDate     DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Relations
-  player1       User     @relation("Player1", fields: [player1Id], references: [id])
-  player2       User     @relation("Player2", fields: [player2Id], references: [id])
-  results       MatchResult[]
+  id          String   @id @default(cuid())
+  player1Id   String
+  player2Id   String
+  player1     User     @relation("Player1", fields: [player1Id], references: [id], onDelete: Cascade)
+  player2     User     @relation("Player2", fields: [player2Id], references: [id], onDelete: Cascade)
+  name        String?
+  status      MatchStatus @default(ACTIVE)
+  results     MatchResult[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
-// Match Result model
+enum MatchStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
 model MatchResult {
-  id            String   @id @default(cuid())
-  matchId       String
-  submitterId   String
-  player1Score  Int
-  player2Score  Int
-  date          DateTime
-  status        String   @default("pending") // pending, accepted, rejected
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Relations
-  match         Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  submitter     User     @relation("ResultSubmitter", fields: [submitterId], references: [id])
+  id          String   @id @default(cuid())
+  matchId     String
+  match       Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player1Score Int
+  player2Score Int
+  date        DateTime
+  status      ResultStatus @default(PENDING)
+  submitterId String
+  submitter   User     @relation("ResultSubmitter", fields: [submitterId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
-// Competition model
+enum ResultStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 model Competition {
-  id            String   @id @default(cuid())
-  title         String
-  type          String   // birdie-checklist, bingo
-  creatorId     String
-  startDate     DateTime @default(now())
-  endDate       DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Relations
-  creator       User     @relation("CompetitionCreator", fields: [creatorId], references: [id])
-  participants  CompetitionParticipant[]
-  holes         CompetitionHole[]
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  type        CompetitionType
+  creatorId   String
+  creator     User     @relation("CompetitionCreator", fields: [creatorId], references: [id])
+  boardSize   Int?     // For bingo competitions (3, 4, or 5 for grid size)
+  participants CompetitionParticipant[]
+  birdieEntries BirdieEntry[]
+  bingoSquares BingoSquare[]
+  bingoEntries BingoEntry[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
-// Competition Participant model
+enum CompetitionType {
+  BIRDIE_CHECKLIST
+  BINGO
+}
+
 model CompetitionParticipant {
   id            String   @id @default(cuid())
   competitionId String
-  userId        String
-  joinedAt      DateTime @default(now())
-
-  // Relations
   competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
-  user          User        @relation(fields: [userId], references: [id])
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
 
   @@unique([competitionId, userId])
 }
 
-// Competition Hole model (for birdie checklist)
-model CompetitionHole {
+model BirdieEntry {
   id            String   @id @default(cuid())
   competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   holeNumber    Int
+  date          DateTime
+  attestedById  String?
+  attestedBy    User?    @relation("BirdieAttester", fields: [attestedById], references: [id])
   createdAt     DateTime @default(now())
 
-  // Relations
-  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
-  birdies       Birdie[]
-
-  @@unique([competitionId, holeNumber])
+  @@unique([competitionId, userId, holeNumber])
 }
 
-// Birdie model
-model Birdie {
-  id              String   @id @default(cuid())
-  competitionHoleId String
-  achieverId      String
-  attesterId      String?
-  date            DateTime
-  createdAt       DateTime @default(now())
-
-  // Relations
-  competitionHole CompetitionHole @relation(fields: [competitionHoleId], references: [id], onDelete: Cascade)
-  achiever        User     @relation("BirdieAchiever", fields: [achieverId], references: [id])
-  attester        User?    @relation("BirdieAttester", fields: [attesterId], references: [id])
-
-  @@unique([competitionHoleId, achieverId])
-}
-
-// BingoSquare model for bingo competitions
 model BingoSquare {
   id            String   @id @default(cuid())
   competitionId String
-  userId        String
-  squareNumber  Int
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  row           Int
+  column        Int
   description   String
-  completed     Boolean  @default(false)
-  completedDate DateTime?
+  entries       BingoEntry[]
   createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
 
-  @@unique([competitionId, userId, squareNumber])
+  @@unique([competitionId, row, column])
+}
+
+model BingoEntry {
+  id            String   @id @default(cuid())
+  squareId      String
+  square        BingoSquare @relation(fields: [squareId], references: [id], onDelete: Cascade)
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date          DateTime
+  attestedById  String?
+  attestedBy    User?    @relation("BingoAttester", fields: [attestedById], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@unique([squareId, userId])
 }

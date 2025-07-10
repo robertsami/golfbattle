@@ -1,12 +1,22 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Trophy, Users, CheckSquare, Grid3X3 } from "lucide-react"
-import { FeatureCardProps } from "@/types"
 
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
-      <main className="flex-1 container mx-auto p-12 md:p-8">
+      <header className="bg-green-800 text-white p-4">
+        <div className="container mx-auto flex justify-between items-center">
+          <h1 className="text-2xl font-bold">GolfRival</h1>
+          <Link href="/login">
+            <Button variant="outline" className="text-white border-white hover:bg-green-700">
+              Login
+            </Button>
+          </Link>
+        </div>
+      </header>
+
+      <main className="flex-1 container mx-auto p-4 md:p-8">
         <section className="mb-12 text-center">
           <h2 className="text-4xl font-bold mb-4 text-green-800">Track Your Golf Competitions</h2>
           <p className="text-xl mb-8 text-gray-700 max-w-2xl mx-auto">
@@ -45,14 +55,14 @@ export default function Home() {
 
       <footer className="bg-gray-800 text-white p-4">
         <div className="container mx-auto text-center">
-          <p>© {new Date().getFullYear()} GolfDegens. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} GolfRival. All rights reserved.</p>
         </div>
       </footer>
     </div>
   )
 }
 
-function FeatureCard({ icon, title, description }: FeatureCardProps) {
+function FeatureCard({ icon, title, description }) {
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
       <div className="flex flex-col items-center text-center">

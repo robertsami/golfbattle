@@ -1,62 +1,35 @@
-import { NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
-import { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt"
+import { type NextRequest, NextResponse } from "next/server"
 
-// List of paths that require authentication
-const protectedPaths = [
-  "/dashboard",
-  "/competitions",
-  "/matches",
-  "/friends",
-];
+export async function middleware(req: NextRequest) {
+  const token = await getToken({ req })
+  const isAuthenticated = !!token
 
-// List of paths that should redirect to dashboard if authenticated
-const authPaths = [
-  "/login",
-  "/signup",
-];
+  // Get the pathname of the request
+  const path = req.nextUrl.pathname
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  
-  // Check if the path is protected
-  const isProtectedPath = protectedPaths.some(path => 
-    pathname === path || pathname.startsWith(`${path}/`)
-  );
-  
-  // Check if the path is an auth path
-  const isAuthPath = authPaths.some(path => 
-    pathname === path || pathname.startsWith(`${path}/`)
-  );
-  
-  // Get the token
-  const token = await getToken({ req: request });
-  
-  // If the path is protected and the user is not authenticated, redirect to login
-  if (isProtectedPath && !token) {
-    const url = new URL("/login", request.url);
-    url.searchParams.set("callbackUrl", encodeURI(pathname));
-    return NextResponse.redirect(url);
+  // Define public and protected routes
+  const publicRoutes = ["/", "/login"]
+  const protectedRoutes = ["/dashboard", "/matches", "/competitions", "/friends"]
+
+  // Check if the path starts with any of the protected routes
+  const isProtectedRoute = protectedRoutes.some((route) => path.startsWith(route))
+  const isPublicRoute = publicRoutes.includes(path)
+
+  // Redirect authenticated users from public routes to dashboard
+  if (isAuthenticated && isPublicRoute) {
+    return NextResponse.redirect(new URL("/dashboard", req.url))
   }
-  
-  // If the path is an auth path and the user is authenticated, redirect to dashboard
-  if (isAuthPath && token) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+
+  // Redirect unauthenticated users from protected routes to login
+  if (!isAuthenticated && isProtectedRoute) {
+    return NextResponse.redirect(new URL("/login", req.url))
   }
-  
-  return NextResponse.next();
+
+  return NextResponse.next()
 }
 
-// Configure the middleware to run on specific paths
+// See "Matching Paths" below to learn more
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
-  ],
-};
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+}

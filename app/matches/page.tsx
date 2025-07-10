@@ -4,87 +4,79 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Plus, ChevronRight, Loader2 } from "lucide-react"
-import { Match } from "@/types"
-import { useSession } from "next-auth/react"
-import { matchAPI } from "@/lib/api/client"
-import { formatDate } from "@/lib/utils"
+import { Plus, ChevronRight, Clock } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function MatchesPage() {
-  const { data: session } = useSession()
-  const [matches, setMatches] = useState<Match[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-  
-  // Fetch matches
+  const { toast } = useToast()
+  const [matches, setMatches] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState("active")
+
   useEffect(() => {
     const fetchMatches = async () => {
       try {
-        setLoading(true)
-        const userId = session?.user?.id
-        
-        if (!userId) {
-          // If not logged in, we'll show empty state
-          setMatches([])
-          return
+        const response = await fetch(`/api/matches?status=${activeTab.toUpperCase()}`)
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch matches")
         }
-        
-        const data = await matchAPI.getMatches(userId)
+
+        const data = await response.json()
         setMatches(data)
-      } catch (err: any) {
-        console.error("Error fetching matches:", err)
-        setError(err.message || "Failed to load matches")
+      } catch (error) {
+        console.error(error)
+        toast({
+          title: "Error",
+          description: "Failed to load matches",
+          variant: "destructive",
+        })
       } finally {
-        setLoading(false)
+        setIsLoading(false)
       }
     }
-    
+
     fetchMatches()
-  }, [session?.user?.id])
+  }, [toast, activeTab])
 
-  // Filter matches by status
-  const activeMatches = matches.filter((match) => match.status === "active")
-  const completedMatches = matches.filter((match) => match.status === "completed")
+  // Format matches for display
+  const formattedMatches = matches.map((match) => {
+    const isPlayer1 = match.player1.id === match.player1Id
+    const opponent = isPlayer1 ? match.player2 : match.player1
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="container mx-auto p-4 md:p-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-green-800">Matches</h1>
-          <Link href="/matches/new">
-            <Button className="bg-green-800 hover:bg-green-700">
-              <Plus className="h-4 w-4 mr-2" /> New Match
-            </Button>
-          </Link>
-        </div>
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-green-800" />
-        </div>
-      </div>
-    )
-  }
+    // Calculate scores
+    let yourScore = 0
+    let opponentScore = 0
+    let pendingResults = 0
 
-  // Show error state
-  if (error) {
-    return (
-      <div className="container mx-auto p-4 md:p-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-green-800">Matches</h1>
-          <Link href="/matches/new">
-            <Button className="bg-green-800 hover:bg-green-700">
-              <Plus className="h-4 w-4 mr-2" /> New Match
-            </Button>
-          </Link>
-        </div>
-        <Card>
-          <CardContent className="p-6 text-center text-red-500">
-            Error loading matches: {error}
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+    match.results.forEach((result) => {
+      if (result.status === "ACCEPTED") {
+        if (isPlayer1) {
+          yourScore += result.player1Score > result.player2Score ? 1 : 0
+          opponentScore += result.player2Score > result.player1Score ? 1 : 0
+        } else {
+          yourScore += result.player2Score > result.player1Score ? 1 : 0
+          opponentScore += result.player1Score > result.player2Score ? 1 : 0
+        }
+      } else if (result.status === "PENDING") {
+        pendingResults++
+      }
+    })
+
+    // Calculate last played date
+    const lastPlayed = match.results.length > 0 ? formatTimeAgo(match.results[0].date) : formatTimeAgo(match.createdAt)
+
+    return {
+      id: match.id,
+      opponent: opponent.name,
+      yourScore,
+      opponentScore,
+      lastPlayed,
+      pendingResults,
+      status: match.status,
+    }
+  })
 
   return (
     <div className="container mx-auto p-4 md:p-8">
@@ -97,75 +89,64 @@ export default function MatchesPage() {
         </Link>
       </div>
 
-      <div className="mb-8">
-        <h2 className="text-xl font-bold mb-4 text-gray-800">Active Matches</h2>
-        {activeMatches.length > 0 ? (
-          <div className="space-y-4">
-            {activeMatches.map((match) => (
-              <MatchCard key={match.id} match={match} currentUserId={session?.user?.id} />
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="p-6 text-center text-gray-500">
-              No active matches. Start a new match to compete with friends!
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      <Tabs defaultValue="active" onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="active">Active Matches</TabsTrigger>
+          <TabsTrigger value="completed">Completed Matches</TabsTrigger>
+        </TabsList>
 
-      <div>
-        <h2 className="text-xl font-bold mb-4 text-gray-800">Completed Matches</h2>
-        {completedMatches.length > 0 ? (
+        <TabsContent value="active">
           <div className="space-y-4">
-            {completedMatches.map((match) => (
-              <MatchCard key={match.id} match={match} currentUserId={session?.user?.id} />
-            ))}
+            {isLoading ? (
+              <Card>
+                <CardContent className="p-6 text-center text-gray-500">Loading matches...</CardContent>
+              </Card>
+            ) : formattedMatches.length > 0 ? (
+              formattedMatches.map((match) => <MatchCard key={match.id} match={match} />)
+            ) : (
+              <Card>
+                <CardContent className="p-6 text-center text-gray-500">
+                  No active matches. Start a new match to compete with friends!
+                </CardContent>
+              </Card>
+            )}
           </div>
-        ) : (
-          <Card>
-            <CardContent className="p-6 text-center text-gray-500">No completed matches yet.</CardContent>
-          </Card>
-        )}
-      </div>
+        </TabsContent>
+
+        <TabsContent value="completed">
+          <div className="space-y-4">
+            {isLoading ? (
+              <Card>
+                <CardContent className="p-6 text-center text-gray-500">Loading matches...</CardContent>
+              </Card>
+            ) : formattedMatches.length > 0 ? (
+              formattedMatches.map((match) => <MatchCard key={match.id} match={match} />)
+            ) : (
+              <Card>
+                <CardContent className="p-6 text-center text-gray-500">No completed matches yet.</CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
 
-interface MatchCardProps {
-  match: any;
-  currentUserId?: string;
-}
-
-function MatchCard({ match, currentUserId }: MatchCardProps) {
-  // Determine if the current user is player1 or player2
-  const isPlayer1 = match.player1Id === currentUserId;
-  
-  // Get the opponent's name
-  const opponentName = isPlayer1 ? match.player2?.name : match.player1?.name;
-  
-  // Get the scores (from the perspective of the current user)
-  const yourScore = isPlayer1 ? match.player1Score : match.player2Score;
-  const opponentScore = isPlayer1 ? match.player2Score : match.player1Score;
-  
-  // Count pending results
-  const pendingResults = match.results?.filter((r: any) => r.status === 'pending').length || 0;
-  
-  // Format the last played date
-  const lastPlayed = formatDate(match.updatedAt || match.startDate);
-
+function MatchCard({ match }) {
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-0">
         <Link href={`/matches/${match.id}`} className="block p-4">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="font-medium text-gray-800">vs. {opponentName || 'Opponent'}</h3>
-              <p className="text-sm text-gray-500">Last played: {lastPlayed}</p>
-              {pendingResults > 0 && (
+              <h3 className="font-medium text-gray-800">vs. {match.opponent}</h3>
+              <p className="text-sm text-gray-500">Last played: {match.lastPlayed}</p>
+              {match.pendingResults > 0 && (
                 <div className="mt-1">
                   <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
-                    {pendingResults} pending {pendingResults === 1 ? "result" : "results"}
+                    <Clock className="h-3 w-3 mr-1" />
+                    {match.pendingResults} pending {match.pendingResults === 1 ? "result" : "results"}
                   </span>
                 </div>
               )}
@@ -174,26 +155,26 @@ function MatchCard({ match, currentUserId }: MatchCardProps) {
               <div className="text-xl font-bold">
                 <span
                   className={
-                    yourScore > opponentScore
-                      ? "text-green-600"  // Higher score is better in match play
-                      : yourScore < opponentScore
+                    match.yourScore > match.opponentScore
+                      ? "text-green-600"
+                      : match.yourScore < match.opponentScore
                         ? "text-red-600"
                         : "text-gray-600"
                   }
                 >
-                  {yourScore}
+                  {match.yourScore}
                 </span>
                 <span className="mx-1">-</span>
                 <span
                   className={
-                    opponentScore > yourScore
-                      ? "text-green-600"  // Higher score is better in match play
-                      : opponentScore < yourScore
+                    match.opponentScore > match.yourScore
+                      ? "text-green-600"
+                      : match.opponentScore < match.yourScore
                         ? "text-red-600"
                         : "text-gray-600"
                   }
                 >
-                  {opponentScore}
+                  {match.opponentScore}
                 </span>
               </div>
               <ChevronRight className="h-5 w-5 text-gray-400" />
@@ -203,4 +184,23 @@ function MatchCard({ match, currentUserId }: MatchCardProps) {
       </CardContent>
     </Card>
   )
+}
+
+// Helper function to format dates as "X time ago"
+function formatTimeAgo(date) {
+  const now = new Date()
+  const diffInMs = now.getTime() - new Date(date).getTime()
+  const diffInSecs = Math.floor(diffInMs / 1000)
+  const diffInMins = Math.floor(diffInSecs / 60)
+  const diffInHours = Math.floor(diffInMins / 60)
+  const diffInDays = Math.floor(diffInHours / 24)
+  const diffInWeeks = Math.floor(diffInDays / 7)
+  const diffInMonths = Math.floor(diffInDays / 30)
+
+  if (diffInSecs < 60) return "just now"
+  if (diffInMins < 60) return `${diffInMins} ${diffInMins === 1 ? "minute" : "minutes"} ago`
+  if (diffInHours < 24) return `${diffInHours} ${diffInHours === 1 ? "hour" : "hours"} ago`
+  if (diffInDays < 7) return `${diffInDays} ${diffInDays === 1 ? "day" : "days"} ago`
+  if (diffInWeeks < 4) return `${diffInWeeks} ${diffInWeeks === 1 ? "week" : "weeks"} ago`
+  return `${diffInMonths} ${diffInMonths === 1 ? "month" : "months"} ago`
 }

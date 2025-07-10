@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -15,114 +15,201 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Plus, Check, X, Clock, Loader2 } from "lucide-react"
-import { PageParams, ResultCardProps, Match, MatchResult } from "@/types"
-import { useSession } from "next-auth/react"
-import { matchAPI } from "@/lib/api/client"
-import { formatDate } from "@/lib/utils"
+import { ArrowLeft, Plus, Check, X, Clock, User, Users } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
 
-export default function MatchDetailPage(props: { params: Promise<PageParams> }) {
-  const params = use(props.params);
-  const { data: session } = useSession()
-  // Get the match ID from params
-  const { id: matchId } = params
-  const [match, setMatch] = useState<Match | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isAddResultOpen, setIsAddResultOpen] = useState<boolean>(false)
-  const [newResult, setNewResult] = useState<{
-    yourScore: string;
-    opponentScore: string;
-    date: string;
-  }>({
+export default function MatchDetailPage({ params }) {
+  const matchId = params.id
+  const router = useRouter()
+  const { toast } = useToast()
+  const [match, setMatch] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isAddResultOpen, setIsAddResultOpen] = useState(false)
+  const [newResult, setNewResult] = useState({
+    date: new Date().toISOString().split("T")[0],
     yourScore: "",
     opponentScore: "",
-    date: new Date().toISOString().split('T')[0]
   })
 
-  // Fetch match data
   useEffect(() => {
     const fetchMatch = async () => {
       try {
-        setLoading(true)
-        const data = await matchAPI.getMatch(matchId)
+        const response = await fetch(`/api/matches/${matchId}`)
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch match")
+        }
+
+        const data = await response.json()
         setMatch(data)
-      } catch (err: any) {
-        console.error("Error fetching match:", err)
-        setError(err.message || "Failed to load match")
+      } catch (error) {
+        console.error(error)
+        toast({
+          title: "Error",
+          description: "Failed to load match details",
+          variant: "destructive",
+        })
       } finally {
-        setLoading(false)
+        setIsLoading(false)
       }
     }
-    
+
     fetchMatch()
-  }, [matchId])
+  }, [matchId, toast])
 
   const handleAddResult = async () => {
-    // In a real app, this would submit to the API
-    setIsAddResultOpen(false)
-    
-    try {
-      await matchAPI.addMatchResult(matchId, {
-        player1Score: parseInt(newResult.yourScore),
-        player2Score: parseInt(newResult.opponentScore),
-        submitterId: session?.user?.id,
-        date: new Date(newResult.date).toISOString(),
+    if (!newResult.yourScore || !newResult.opponentScore || !newResult.date) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all fields",
+        variant: "destructive",
       })
-      
-      // Refresh match data
-      const updatedMatch = await matchAPI.getMatch(matchId)
-      setMatch(updatedMatch)
-      
+      return
+    }
+
+    try {
+      // Determine if the current user is player1 or player2
+      const isPlayer1 = match.player1.id === match.player1Id
+
+      // Map the scores correctly based on who is submitting
+      const player1Score = isPlayer1 ? newResult.yourScore : newResult.opponentScore
+      const player2Score = isPlayer1 ? newResult.opponentScore : newResult.yourScore
+
+      const response = await fetch(`/api/matches/${matchId}/results`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          player1Score,
+          player2Score,
+          date: newResult.date,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to add result")
+      }
+
+      const result = await response.json()
+
+      // Update the match with the new result
+      setMatch({
+        ...match,
+        results: [result, ...match.results],
+      })
+
+      setIsAddResultOpen(false)
+
       // Reset form
       setNewResult({
+        date: new Date().toISOString().split("T")[0],
         yourScore: "",
         opponentScore: "",
-        date: new Date().toISOString().split('T')[0]
       })
-    } catch (err: any) {
-      console.error("Error adding result:", err)
-      // Show error message to user
-      alert("Failed to add result: " + (err.message || "Unknown error"))
+
+      toast({
+        title: "Result added",
+        description: "Your match result has been submitted",
+      })
+
+      // Refresh the data
+      router.refresh()
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: "Error",
+        description: "Failed to add result",
+        variant: "destructive",
+      })
     }
   }
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="container mx-auto p-4 md:p-8">
-        <div className="flex items-center mb-8">
-          <Link href="/matches">
-            <Button variant="ghost" className="mr-4">
-              <ArrowLeft className="h-4 w-4 mr-2" /> Back
-            </Button>
-          </Link>
-          <h1 className="text-3xl font-bold text-green-800">Match Details</h1>
-        </div>
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-green-800" />
-        </div>
-      </div>
-    )
+  const acceptResult = async (resultId) => {
+    try {
+      const response = await fetch(`/api/matches/${matchId}/results/${resultId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "accept",
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to accept result")
+      }
+
+      // Update the result status in the UI
+      setMatch({
+        ...match,
+        results: match.results.map((result) => (result.id === resultId ? { ...result, status: "ACCEPTED" } : result)),
+      })
+
+      toast({
+        title: "Result accepted",
+        description: "The match result has been accepted",
+      })
+
+      // Refresh the data
+      router.refresh()
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: "Error",
+        description: "Failed to accept result",
+        variant: "destructive",
+      })
+    }
   }
 
-  // Show error state
-  if (error) {
+  const rejectResult = async (resultId) => {
+    try {
+      const response = await fetch(`/api/matches/${matchId}/results/${resultId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "reject",
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to reject result")
+      }
+
+      // Update the result status in the UI
+      setMatch({
+        ...match,
+        results: match.results.map((result) => (result.id === resultId ? { ...result, status: "REJECTED" } : result)),
+      })
+
+      toast({
+        title: "Result rejected",
+        description: "The match result has been rejected",
+      })
+
+      // Refresh the data
+      router.refresh()
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: "Error",
+        description: "Failed to reject result",
+        variant: "destructive",
+      })
+    }
+  }
+
+  if (isLoading) {
     return (
       <div className="container mx-auto p-4 md:p-8">
-        <div className="flex items-center mb-8">
-          <Link href="/matches">
-            <Button variant="ghost" className="mr-4">
-              <ArrowLeft className="h-4 w-4 mr-2" /> Back
-            </Button>
-          </Link>
-          <h1 className="text-3xl font-bold text-green-800">Match Details</h1>
+        <div className="text-center py-12">
+          <p className="text-gray-500">Loading match details...</p>
         </div>
-        <Card>
-          <CardContent className="p-6 text-center text-red-500">
-            Error loading match: {error}
-          </CardContent>
-        </Card>
       </div>
     )
   }
@@ -130,203 +217,254 @@ export default function MatchDetailPage(props: { params: Promise<PageParams> }) 
   if (!match) {
     return (
       <div className="container mx-auto p-4 md:p-8">
-        <div className="flex items-center mb-8">
-          <Link href="/matches">
-            <Button variant="ghost" className="mr-4">
-              <ArrowLeft className="h-4 w-4 mr-2" /> Back
-            </Button>
+        <div className="text-center py-12">
+          <p className="text-gray-500">Match not found</p>
+          <Link href="/matches" className="text-green-800 hover:underline mt-4 inline-block">
+            Back to Matches
           </Link>
-          <h1 className="text-3xl font-bold text-green-800">Match Details</h1>
         </div>
-        <Card>
-          <CardContent className="p-6 text-center text-gray-500">
-            Match not found
-          </CardContent>
-        </Card>
       </div>
     )
   }
 
   // Determine if the current user is player1 or player2
-  const currentUserId = session?.user?.id
-  const isPlayer1 = match.player1Id === currentUserId
+  const isPlayer1 = match.player1.id === match.player1Id
+  const opponent = isPlayer1 ? match.player2 : match.player1
 
-  // Get the opponent's name
-  const opponentName = isPlayer1 ? match.player2?.name : match.player1?.name
+  // Calculate scores
+  let yourScore = 0
+  let opponentScore = 0
 
-  // Get the scores (from the perspective of the current user)
-  const yourScore = isPlayer1 ? match.player1Score : match.player2Score
-  const opponentScore = isPlayer1 ? match.player2Score : match.player1Score
+  const acceptedResults = match.results.filter((result) => result.status === "ACCEPTED")
+  const pendingResults = match.results.filter((result) => result.status === "PENDING")
 
-  // Format the start date
-  const startDate = formatDate(match.startDate)
+  acceptedResults.forEach((result) => {
+    if (isPlayer1) {
+      yourScore += result.player1Score > result.player2Score ? 1 : 0
+      opponentScore += result.player2Score > result.player1Score ? 1 : 0
+    } else {
+      yourScore += result.player2Score > result.player1Score ? 1 : 0
+      opponentScore += result.player1Score > result.player2Score ? 1 : 0
+    }
+  })
 
-  // Process results
-  const results = match.results?.map((result: any) => ({
-    id: result.id,
-    date: formatDate(result.date),
-    yourScore: isPlayer1 ? result.player1Score : result.player2Score,
-    opponentScore: isPlayer1 ? result.player2Score : result.player1Score,
-    status: result.status,
-    submittedBy: result.submitter?.name || 'Unknown',
-  })) || []
+  // Calculate average scores
+  const yourAvgScore =
+    acceptedResults.length > 0
+      ? Math.round(
+          acceptedResults.reduce((sum, result) => sum + (isPlayer1 ? result.player1Score : result.player2Score), 0) /
+            acceptedResults.length,
+        )
+      : 0
+
+  const opponentAvgScore =
+    acceptedResults.length > 0
+      ? Math.round(
+          acceptedResults.reduce((sum, result) => sum + (isPlayer1 ? result.player2Score : result.player1Score), 0) /
+            acceptedResults.length,
+        )
+      : 0
 
   return (
     <div className="container mx-auto p-4 md:p-8">
-      <div className="flex items-center mb-8">
-        <Link href="/matches">
-          <Button variant="ghost" className="mr-4">
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back
-          </Button>
+      <div className="mb-8">
+        <Link href="/matches" className="inline-flex items-center text-green-800 hover:text-green-700 mb-4">
+          <ArrowLeft className="h-4 w-4 mr-1" /> Back to Matches
         </Link>
-        <h1 className="text-3xl font-bold text-green-800">Match Details</h1>
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold text-green-800">Match vs. {opponent.name}</h1>
+          <Button onClick={() => setIsAddResultOpen(true)} className="bg-green-800 hover:bg-green-700">
+            <Plus className="h-4 w-4 mr-2" /> Add Result
+          </Button>
+        </div>
+        <p className="text-gray-600">Started on {new Date(match.createdAt).toLocaleDateString()}</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h2 className="text-2xl font-bold">vs. {opponentName || 'Opponent'}</h2>
-                  <p className="text-gray-500">Started {startDate}</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold mb-1">
-                    <span
-                      className={
-                        (yourScore || 0) > (opponentScore || 0)
-                          ? "text-green-600"  // Higher score is better in match play
-                          : (yourScore || 0) < (opponentScore || 0)
-                            ? "text-red-600"
-                            : "text-gray-600"
-                      }
-                    >
-                      {yourScore}
-                    </span>
-                    <span className="mx-2">-</span>
-                    <span
-                      className={
-                        (opponentScore || 0) > (yourScore || 0)
-                          ? "text-green-600"  // Higher score is better in match play
-                          : (opponentScore || 0) < (yourScore || 0)
-                            ? "text-red-600"
-                            : "text-gray-600"
-                      }
-                    >
-                      {opponentScore}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-500">Current Score</p>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <Button
-                  className="bg-green-800 hover:bg-green-700"
-                  onClick={() => setIsAddResultOpen(true)}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <div className="text-sm text-gray-500 mb-1">Current Score</div>
+              <div className="flex justify-center items-center gap-2 text-3xl font-bold">
+                <span
+                  className={
+                    yourScore > opponentScore
+                      ? "text-green-600"
+                      : yourScore < opponentScore
+                        ? "text-red-600"
+                        : "text-gray-600"
+                  }
                 >
-                  <Plus className="h-4 w-4 mr-2" /> Add Result
-                </Button>
+                  {yourScore}
+                </span>
+                <span className="text-gray-400">-</span>
+                <span
+                  className={
+                    opponentScore > yourScore
+                      ? "text-green-600"
+                      : opponentScore < yourScore
+                        ? "text-red-600"
+                        : "text-gray-600"
+                  }
+                >
+                  {opponentScore}
+                </span>
               </div>
-            </CardContent>
-          </Card>
-
-          <Tabs defaultValue="results">
-            <TabsList className="mb-6">
-              <TabsTrigger value="results">Results</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="results">
-              <h2 className="text-xl font-bold mb-4 text-gray-800">Match Results</h2>
-              {match && match.results.filter(r => r.status === 'accepted').length > 0 ? (
-                <div className="space-y-4">
-                  {match.results
-                    .filter(r => r.status === 'accepted')
-                    .map(result => (
-                      <ResultCard key={result.id} result={result} />
-                    ))}
-                </div>
-              ) : (
-                <Card>
-                  <CardContent className="p-6 text-center text-gray-500">
-                    No results yet. Add your first result!
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        <div>
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="text-xl font-bold mb-4 text-gray-800">Match Info</h2>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-500">Status</p>
-                  <p className="font-medium capitalize">{match.status}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Start Date</p>
-                  <p className="font-medium">{startDate}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Players</p>
-                  <p className="font-medium">You vs. {opponentName || 'Opponent'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Results</p>
-                  <p className="font-medium">{match ? match.results.filter(r => r.status === 'accepted').length : 0} submitted</p>
-                </div>
+              <div className="mt-2 text-sm">
+                <span className="font-medium">You</span> vs. <span className="font-medium">{opponent.name}</span>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <div className="text-sm text-gray-500 mb-1">Total Results</div>
+              <div className="text-3xl font-bold text-gray-800">{match.results.length}</div>
+              <div className="mt-2 text-sm text-gray-600">
+                {acceptedResults.length} accepted, {pendingResults.length} pending
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <div className="text-sm text-gray-500 mb-1">Average Score</div>
+              <div className="flex justify-center items-center gap-2 text-3xl font-bold">
+                <span className="text-gray-800">{yourAvgScore || "-"}</span>
+                <span className="text-gray-400">-</span>
+                <span className="text-gray-800">{opponentAvgScore || "-"}</span>
+              </div>
+              <div className="mt-2 text-sm text-gray-600">Your average vs. Opponent average</div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <Tabs defaultValue="all" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="all">All Results</TabsTrigger>
+          <TabsTrigger value="pending">Pending ({pendingResults.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="all">
+          <div className="space-y-4">
+            {match.results.length > 0 ? (
+              match.results.map((result) => (
+                <ResultCard
+                  key={result.id}
+                  result={result}
+                  opponent={opponent}
+                  isPlayer1={isPlayer1}
+                  onAccept={acceptResult}
+                  onReject={rejectResult}
+                />
+              ))
+            ) : (
+              <Card>
+                <CardContent className="p-6 text-center text-gray-500">
+                  No results yet. Add your first result to get started!
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="pending">
+          <div className="space-y-4">
+            {pendingResults.length > 0 ? (
+              pendingResults.map((result) => (
+                <ResultCard
+                  key={result.id}
+                  result={result}
+                  opponent={opponent}
+                  isPlayer1={isPlayer1}
+                  onAccept={acceptResult}
+                  onReject={rejectResult}
+                />
+              ))
+            ) : (
+              <Card>
+                <CardContent className="p-6 text-center text-gray-500">No pending results to review.</CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isAddResultOpen} onOpenChange={setIsAddResultOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Add Match Result</DialogTitle>
             <DialogDescription>
-              Enter the scores for your match with {opponentName || 'your opponent'}.
+              Enter the golf scores from your round with {opponent.name}. Lower scores are better in golf.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-4">
-              <div>
-                <Label htmlFor="matchDate">Date</Label>
+
+          <div className="grid gap-6 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="date">Date Played</Label>
+              <Input
+                id="date"
+                type="date"
+                value={newResult.date}
+                onChange={(e) => setNewResult({ ...newResult, date: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <div className="text-sm font-medium text-gray-700 mb-3">Golf Scores (Strokes)</div>
+
+              {/* Your Score */}
+              <div className="grid gap-2">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-green-600" />
+                  <Label htmlFor="yourScore" className="font-medium text-green-700">
+                    Your Score
+                  </Label>
+                </div>
                 <Input
-                  id="matchDate"
-                  type="date"
-                  value={newResult.date}
-                  onChange={(e) => setNewResult({ ...newResult, date: e.target.value })}
+                  id="yourScore"
+                  type="number"
+                  placeholder="e.g., 72"
+                  value={newResult.yourScore}
+                  onChange={(e) => setNewResult({ ...newResult, yourScore: e.target.value })}
+                  className="text-lg"
                 />
+                <p className="text-xs text-gray-500">Enter your total strokes for the round</p>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="yourScore">Your Score</Label>
-                  <Input
-                    id="yourScore"
-                    type="number"
-                    value={newResult.yourScore}
-                    onChange={(e) => setNewResult({ ...newResult, yourScore: e.target.value })}
-                  />
+
+              {/* Opponent Score */}
+              <div className="grid gap-2">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  <Label htmlFor="opponentScore" className="font-medium text-blue-700">
+                    {opponent.name}'s Score
+                  </Label>
                 </div>
-                <div>
-                  <Label htmlFor="opponentScore">{opponentName || 'Opponent'}'s Score</Label>
-                  <Input
-                    id="opponentScore"
-                    type="number"
-                    value={newResult.opponentScore}
-                    onChange={(e) => setNewResult({ ...newResult, opponentScore: e.target.value })}
-                  />
-                </div>
+                <Input
+                  id="opponentScore"
+                  type="number"
+                  placeholder="e.g., 75"
+                  value={newResult.opponentScore}
+                  onChange={(e) => setNewResult({ ...newResult, opponentScore: e.target.value })}
+                  className="text-lg"
+                />
+                <p className="text-xs text-gray-500">Enter {opponent.name}'s total strokes for the round</p>
               </div>
             </div>
+
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <p className="text-xs text-gray-600">
+                <strong>Remember:</strong> In golf, the lowest score wins. Both players will need to accept this result
+                before it counts toward your match score.
+              </p>
+            </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddResultOpen(false)}>
               Cancel
@@ -341,74 +479,80 @@ export default function MatchDetailPage(props: { params: Promise<PageParams> }) 
   )
 }
 
-function ResultCard({ result }: ResultCardProps) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <p className="text-sm text-gray-500">{new Date(result.date).toLocaleDateString()}</p>
-            <p className="text-xs text-gray-400">Submitted by {result.submitter?.name || 'Unknown'}</p>
-          </div>
-          <div className="text-center">
-            <div className="text-xl font-bold">
-              <span
-                className={
-                  result.player1Score > result.player2Score
-                    ? "text-green-600"  // Higher score is better in match play
-                    : result.player1Score < result.player2Score
-                      ? "text-red-600"
-                      : "text-gray-600"
-                }
-              >
-                {result.player1Score}
-              </span>
-              <span className="mx-1">-</span>
-              <span
-                className={
-                  result.player2Score > result.player1Score
-                    ? "text-green-600"  // Higher score is better in match play
-                    : result.player2Score < result.player1Score
-                      ? "text-red-600"
-                      : "text-gray-600"
-                }
-              >
-                {result.player2Score}
-              </span>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
+function ResultCard({ result, opponent, isPlayer1, onAccept, onReject }) {
+  // Determine if the current user submitted this result
+  const isSubmitter = result.submitter.id === (isPlayer1 ? result.match.player1Id : result.match.player2Id)
 
-function PendingResultCard({ result }: { result: any }) {
+  // Format the scores based on who is viewing
+  const yourScore = isPlayer1 ? result.player1Score : result.player2Score
+  const opponentScore = isPlayer1 ? result.player2Score : result.player1Score
+
   return (
-    <Card>
+    <Card className={result.status === "PENDING" ? "border-amber-300" : ""}>
       <CardContent className="p-4">
         <div className="flex justify-between items-center">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="h-4 w-4 text-amber-500" />
-              <p className="text-sm font-medium">Pending Approval</p>
+            <div className="text-sm text-gray-500">{new Date(result.date).toLocaleDateString()}</div>
+            <div className="mt-1 flex items-center gap-2">
+              <div className="text-lg font-medium">
+                <span
+                  className={
+                    yourScore < opponentScore
+                      ? "text-green-600"
+                      : yourScore > opponentScore
+                        ? "text-red-600"
+                        : "text-gray-600"
+                  }
+                >
+                  {yourScore}
+                </span>
+                <span className="mx-1 text-gray-400">-</span>
+                <span
+                  className={
+                    opponentScore < yourScore
+                      ? "text-green-600"
+                      : opponentScore > yourScore
+                        ? "text-red-600"
+                        : "text-gray-600"
+                  }
+                >
+                  {opponentScore}
+                </span>
+              </div>
+
+              {result.status === "PENDING" && (
+                <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
+                  <Clock className="h-3 w-3 mr-1" /> Pending
+                </span>
+              )}
             </div>
-            <p className="text-sm text-gray-500">{result.date}</p>
-            <p className="text-xs text-gray-400">Submitted by {result.submittedBy}</p>
+            <div className="text-xs text-gray-500 mt-1">
+              Submitted by: {result.submitter.name}
+              {yourScore < opponentScore && <span className="ml-2 text-green-600 font-medium">You won!</span>}
+              {yourScore > opponentScore && <span className="ml-2 text-red-600 font-medium">{opponent.name} won</span>}
+              {yourScore === opponentScore && <span className="ml-2 text-gray-600 font-medium">Tie</span>}
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-xl font-bold">
-              {result.yourScore} - {result.opponentScore}
-            </div>
+
+          {result.status === "PENDING" && !isSubmitter && (
             <div className="flex gap-2">
-              <Button variant="outline" size="icon" className="h-8 w-8 rounded-full text-green-600">
-                <Check className="h-4 w-4" />
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-red-600 border-red-600 hover:bg-red-50 bg-transparent"
+                onClick={() => onReject(result.id)}
+              >
+                <X className="h-4 w-4 mr-1" /> Reject
               </Button>
-              <Button variant="outline" size="icon" className="h-8 w-8 rounded-full text-red-600">
-                <X className="h-4 w-4" />
+              <Button size="sm" className="bg-green-800 hover:bg-green-700" onClick={() => onAccept(result.id)}>
+                <Check className="h-4 w-4 mr-1" /> Accept
               </Button>
             </div>
-          </div>
+          )}
+
+          {result.status === "PENDING" && isSubmitter && (
+            <div className="text-sm text-gray-500">Waiting for {opponent.name} to accept</div>
+          )}
         </div>
       </CardContent>
     </Card>

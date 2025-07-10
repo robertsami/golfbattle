@@ -1,35 +1,40 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getAuthSession } from "@/auth"
+import prisma from "@/lib/db"
+import { NextResponse } from "next/server"
 
-// GET /api/matches/[id] - Get a specific match
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
-    // Ensure params is properly awaited
-    const { id: matchId } = await params;
-    
+    const session = await getAuthSession()
+
+    if (!session?.user) {
+      return new NextResponse("Unauthorized", { status: 401 })
+    }
+
+    const { id } = params
+
+    // Get the match
     const match = await prisma.match.findUnique({
-      where: { id: matchId },
+      where: {
+        id,
+      },
       include: {
         player1: {
           select: {
             id: true,
             name: true,
-            friendId: true,
+            image: true,
           },
         },
         player2: {
           select: {
             id: true,
             name: true,
-            friendId: true,
+            image: true,
           },
         },
         results: {
           orderBy: {
-            date: 'desc',
+            date: "desc",
           },
           include: {
             submitter: {
@@ -41,116 +46,64 @@ export async function GET(
           },
         },
       },
-    });
-    
+    })
+
     if (!match) {
-      return NextResponse.json(
-        { error: 'Match not found' },
-        { status: 404 }
-      );
+      return new NextResponse("Match not found", { status: 404 })
     }
-    
-    return NextResponse.json(match);
+
+    // Check if the current user is a participant
+    if (match.player1Id !== session.user.id && match.player2Id !== session.user.id) {
+      return new NextResponse("Unauthorized", { status: 401 })
+    }
+
+    return NextResponse.json(match)
   } catch (error) {
-    console.error('Error fetching match:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch match' },
-      { status: 500 }
-    );
+    console.error("[MATCH_GET]", error)
+    return new NextResponse("Internal Error", { status: 500 })
   }
 }
 
-// PUT /api/matches/[id] - Update a match
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    // Ensure params is properly awaited
-    const { id: matchId } = await params;
-    const body = await request.json();
-    const { title, status } = body;
-    
-    // Validate the match exists
-    const existingMatch = await prisma.match.findUnique({
-      where: { id: matchId },
-    });
-    
-    if (!existingMatch) {
-      return NextResponse.json(
-        { error: 'Match not found' },
-        { status: 404 }
-      );
+    const session = await getAuthSession()
+
+    if (!session?.user) {
+      return new NextResponse("Unauthorized", { status: 401 })
     }
-    
+
+    const { id } = params
+    const { status } = await req.json()
+
+    // Get the match
+    const match = await prisma.match.findUnique({
+      where: {
+        id,
+      },
+    })
+
+    if (!match) {
+      return new NextResponse("Match not found", { status: 404 })
+    }
+
+    // Check if the current user is a participant
+    if (match.player1Id !== session.user.id && match.player2Id !== session.user.id) {
+      return new NextResponse("Unauthorized", { status: 401 })
+    }
+
     // Update the match
     const updatedMatch = await prisma.match.update({
-      where: { id: matchId },
+      where: {
+        id,
+      },
       data: {
-        title: title !== undefined ? title : undefined,
-        status: status !== undefined ? status : undefined,
+        status: status as any,
       },
-      include: {
-        player1: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        player2: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
-    
-    return NextResponse.json(updatedMatch);
-  } catch (error) {
-    console.error('Error updating match:', error);
-    return NextResponse.json(
-      { error: 'Failed to update match' },
-      { status: 500 }
-    );
-  }
-}
+    })
 
-// DELETE /api/matches/[id] - Delete a match
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // Ensure params is properly awaited
-    const { id: matchId } = await params;
-    
-    // Validate the match exists
-    const existingMatch = await prisma.match.findUnique({
-      where: { id: matchId },
-    });
-    
-    if (!existingMatch) {
-      return NextResponse.json(
-        { error: 'Match not found' },
-        { status: 404 }
-      );
-    }
-    
-    // Delete the match
-    await prisma.match.delete({
-      where: { id: matchId },
-    });
-    
-    return NextResponse.json(
-      { message: 'Match deleted successfully' },
-      { status: 200 }
-    );
+    return NextResponse.json(updatedMatch)
   } catch (error) {
-    console.error('Error deleting match:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete match' },
-      { status: 500 }
-    );
+    console.error("[MATCH_PATCH]", error)
+    return new NextResponse("Internal Error", { status: 500 })
   }
 }
